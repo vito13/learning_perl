@@ -1,4 +1,4 @@
-# 变量与字面量
+# 基础知识
 Perl在做变量赋值时、在使用变量时，都会在变量前加上变量前缀，这些特殊的前缀，在Perl中称为Sigil。Sigil前缀隐含了多种含义，其中之二是：
 * 根据变量所保存的内存地址去访问该地址所指向的内存空间
 * 根据Sigil类型决定如何划分以及如何访问内存空间
@@ -14,7 +14,7 @@ $前缀表示标量，只划分或只访问一个内存数据空间(chunk)。Per
 
 [huawei@n148 perl]$ cat 1.pl
 #!/usr/bin/perl
-use v5.12;
+use 5.12;
 my $x;
 say "addr x: ", \$x;
 $x = "hello";
@@ -31,7 +31,7 @@ addr x: SCALAR(0x7bfab0)
 --------------------------
 cat 1.pl
 #!/usr/bin/perl
-use v5.12;
+use 5.12;
 my $x = 33;
 say "x: $x, ", "addr: ", \$x;
 # 为变量重新赋值，变量指向的内存地址不变
@@ -58,7 +58,7 @@ x: 55, addr: SCALAR(0x13ab748)
 
 [huawei@n148 perl]$ cat 1.pl
 #!/usr/bin/perl
-use v5.12;
+use 5.12;
 my $name = "junmajinlong";
 my $name_ref = \$name;
 print "$name\n";        # ${name}
@@ -69,14 +69,15 @@ junmajinlong
 junmajinlong
 
 ```
-## 赋值
-### 按值拷贝
+
+
+## 按值拷贝赋值
 ```
 将$b赋值给$a时，根据Sigil的规则，出现在赋值操作符左边的$a表示写内存，出现在赋值操作符右边的$b表示读内存数据。也就是说，读取$b保存在堆内存中的数据，并将其写入$a对应的内存空间。因此，内存中将存在两份值相同但地址不同的数据。
 
 [huawei@n148 perl]$ cat 1.pl
 #!/usr/bin/perl
-use v5.12;
+use 5.12;
 my $b = "junmajinlong";
 my $a = $b;
 say \$a;
@@ -86,7 +87,7 @@ say \$b;
 SCALAR(0x1519b88)
 SCALAR(0x1536ab0)
 ```
-### 左值、右值
+## 左值、右值
 * 当Sigil出现在赋值操作符左边时，表示对变量进行赋值。找到变量的内存地址，然后将数据写入该内存。
 * Perl并不仅仅只允许为变量赋值，还可以为数组的元素赋值，为hash的元素赋值，甚至还可以为某些函数调用后的返回结果进行赋值。
 * 左值用来向内存中保存数据，右值用来从内存读取数据(即从内存返回数据)。
@@ -122,10 +123,10 @@ $n = "   1234";         # 有前缀空白的字符串数值
 $n = "  123a";          # 可以当数值123使用，但warnings时会警告
 ```
 Perl可以将字符串格式的数值当作数值来使用
-## 判断数值
+## 判断数据类型
 ```
 #!/usr/bin/perl
-use v5.12;
+use 5.12;
 my $a;          # undef
 my $b = "";     # 空字符串
 my $c = 33;     # 数值
@@ -153,155 +154,14 @@ e not numeric
 e not numeric
 
 ```
-## 字符串字面量
-和Shell类似，使用双引号或单引号包围
-* 双引号：双引号包围的是字符串字面量，但允许在双引号内使用变量内插(Interpolate)、表达式内插、反斜线转义、反斜线字符序列
-* 单引号：单引号包围的字符串字面量不允许使用变量内插、表达式内插、反斜线序列，也禁止几乎所有的反斜线转义，只允许对单引号自身和反斜线自身进行反斜线转义
-
-```
-#!/usr/bin/perl
-use v5.12;
-use warnings;
-
-my $name = "junma";
-my $age = 23;
-
-say "hello";   # hello，普通字符串
-say 'hello';   # hello，普通字符串
-
-# 双引号内可以使用反斜线转义，可以使用单引号
-# 单引号内只能转义单引号和反斜线，可以使用双引号
-say "hello\"world, hello'world";  # hello"world, hello'world
-say 'hello\'world, hello"world';  # hello'world, hello"world
-say "hello\\world";  # hello\world
-say 'hello\\world';  # hello\world
-
-# 双引号内可以变量内插，单引号内不能变量内插
-say "hello $name";    # hello junma
-say 'hello $name';    # hello $name
-
-# 双引号内可以表达式内插，单引号内不能表达式内插
-say "age: @{[$age+2]}";  # age: 25
-say 'age: @{[$age+2]}';  # age: @{[$age+2]}
-
-# 双引号内转义变量内插、转义表达式内插
-say "hello \$name";      # hello $name
-say "age: \@{[$age+2]}"; # age: @{[23+2]}
-
-# 双引号内可以使用反斜线字符序列，单引号内不允许使用
-say "hello\tworld";  # hello  world
-say 'hello\tworld';  # hello\tworld
-
-my @arr = (11, 22, 33);
-say "@arr";     # 输出：11 22 33
-my %person = (name=>"junma", age=>23);
-say "%person";  # 输出：%person，hash变量不内插
 
 
-
-[huawei@n148 perl]$ perl 1.pl
-
-[huawei@n148 perl]$ perl 1.pl
-hello
-hello
-hello"world, hello'world
-hello'world, hello"world
-hello\world
-hello\world
-hello junma
-hello $name
-age: 25
-age: @{[$age+2]}
-hello $name
-age: @{[23+2]}
-hello   world
-hello\tworld
-11 22 33
-%person
-```
-## 转义字符
-* \u 修改下一个字符为大写
-* \l 修改下一个字符小写 
-* \U 修改后面所有字符大写 
-* \L 修改后面所有字符小写 
-* \Q 使后面的所有字符都成为字面符号
-* \E 结束\U \L或\Q的效果
-```
-#!/usr/bin/perl
-use v5.12;
-say "\uabc"; # 输出Abc
-say "\Uabc"; # 输出ABC
-say "ab\Ucxyz";   # 输出abCXYZ
-say "ab\Ucx\Eyz"; # 输出abCXyz
-# 将匹配的字符换成大写
-my $name = "junmajinlong";
-$name =~ s/([j-n])/\U\1\E/g;
-say $name;    # 输出：JuNMaJiNLoNg
-
-[huawei@n148 perl]$ perl 1.pl
-Abc
-ABC
-abCXYZ
-abCXyz
-JuNMaJiNLoNg
-```
-## q、qq
-如果一个字符串比较复杂，使用单双引号包围字符串可能会非常麻烦。Perl中可以使用q实现单引号相同的引用功能，使用qq实现双引号相同的引用功能。
-```
-#!/usr/bin/perl
-use v5.12;
-
-say q!abc!;
-say q<abc>;
-say qq{abc};
-
-say qq 1def1;   # 等价于qq(def)
-say qq adefa;   # 等价于qq(def)
-
-say qq{abc\}def};  # 转义终止符
-say qq{abc\{def};  # 转义起始符
-say qq ad\aefa;    # 转义起始符a，输出daef
-
-say qq{ab{cd}e};   # ab{cd}e
-
-
-[huawei@n148 perl]$ perl 1.pl
-abc
-abc
-abc
-def
-def
-abc}def
-abc{def
-daef
-ab{cd}e
-
-```
 ## bareword
 不用任何引号包围的字符也被Perl当作字符串，这种字符串称为Bareword(裸字符串)。如果开启了warnings功能，使用Bareword时，perl会警告。
 不建议使用bareword。
 ## v-str
 ## here doc
-## 字符串连接和重复
-Perl使用点.来串联字符串。Perl使用x(字母xyz的x)来重复字符串指定次数，如果x重复次数是小数，则截断为整数，如果x是0，则清空字符串。
-```
-#!/usr/bin/perl
-use v5.12;
-my $name = "junmajinlong";
-say "www.".$name.".com";  # 输出：www.junmajinlong.com
-say '-' x 5;   # 重复5次，输出：-----
-say '-' x 5.6;  # 输出-----
-say '-' x 0;    # 输出空字符串
 
-
-[huawei@n148 perl]$ perl 1.pl
-www.junmajinlong.com
------
------
-
-[huawei@n148 perl]$
-
-```
 
 ## 数值和字符串的转换
 * 当使用运算符+ - * / % -(负号) ++ -- abs以及< <= > >= == !=时，都会将操作数强制转换为数值。
@@ -309,7 +169,7 @@ www.junmajinlong.com
 * 当字符串操作符和数值操作符混用时，注意它们的优先级。如果不确定优先级，使用括号强制改变优先级：
 ```
 #!/usr/bin/perl
-use v5.12;
+use 5.12;
 say "0333" + 22;  # 返回355
 say "12abc" * 3;  # 36
 say "abc12" * 4;  # 0
@@ -332,7 +192,283 @@ abc15
 abc8
 
 ```
-# 数值和字符串常见操作函数
+# 流程控制
+## 关于true与false
+Perl没有直接代表布尔值的false值和true值。代表布尔假的值有如下：
+
+    数值0、0.0
+    空字符串''、字符串"0"
+    undef
+    空列表，包括() ((())) ((),())
+    空数组
+    空hash
+除以上代表布尔假的值之外，其余都是布尔真。
+## 比较运算符
+```
+数值     字符串      意义
+-----------------------------
+==       eq        相等
+!=       ne        不等
+<        lt        小于
+>        gt        大于
+<=       le        小于或等于
+>=       ge        大于或等于
+<=>      cmp       返回值-1/0/1。
+				   a小于b时，返回-1
+				   a等于b时，返回0
+				   a大于b时，返回1
+				   对于<=>，如果比较的双方有一方不是数值，该操作符将返回undef
+
+示例
+35 != 30 + 5       # false
+35 == 35.0         # true
+'35'   eq '35.0'   # false(str compare)
+'fly'  lt 'bly'    # false
+'fly'  lt 'free'   # true
+'red'  eq 'red'    # true
+'red'  eq 'Red'    # false
+' '    gt ''       # true，空格大于空串
+10<=>20            # -1
+20<=>20            # 0
+30<=>20            # 1				   
+```
+## &&、||、!
+逻辑运算操作符
+```
+not expr          # 逻辑取反
+expr1 and expr2   # 逻辑与
+expr1  or expr2   # 逻辑或
+
+! expr            # 逻辑取反
+expr1 && expr2    # 逻辑与
+expr1 || expr2    # 逻辑或
+```
+not、and、or基本等价于对应的!、&&、||，但文字格式的逻辑运算符优先级非常低，而符号格式的逻辑运算符优先级则较高。因为符号格式的逻辑运算符优先级很高，所以往往左边和右边都会加上括号，而文字格式的优先级很低，左右两边不需加括号
+```
+if (($n >=60) && ($n <80)){ print "..."; }
+if ($n >=60 and $n <80){ print "..."; }
+
+or运算符往往会用于连接两个【成功执行，否则就】的子句。例如，打开文件，如果打开失败，就报错退出perl程序：
+open LOG '<' "/tmp/a.log" or die "Can't open file!";
+
+
+and运算符也常用于连接两个行为：左边为真，就执行右边的操作(例如赋值)。
+$m < $n and $m = $n;   # 将$m和$n之间较大值保存到变量m
+
+
+!!在布尔判断效果上不会变化，但会将值转换为undef或1。
+say !!"abc";   # 1
+say !!"";      # 空
+say ((!!"") + 2);  # 2
+```
+## 逻辑定义或 //
+||会短路计算，且有返回值。结合这两点，可以为变量做默认赋值。
+```
+my $name = $myname || "junmajinlong"
+```
+但是，这样的方式不严谨，因为有两种情况都会将junmajinlong作为默认值赋值给变量name：
+* 变量myname处于未定义状态
+* 变量myname已定义，但其值为undef、空字符串、数值0等代表布尔假的值
+
+因此Perl v5.10提供了另一种逻辑运算符//【逻辑定义或】(logical defined-or)。如果左边的值不是undef(包括未定义变量)，则短路运算且返回左边的值，如果左边的值为undef，则计算并返回右边表达式的值。
+```
+use 5.010;
+my $name = $myname // "junmajinloing";
+
+当开启了warnings时，//可以免除使用undef值的警告，但仍然无法避开use strict模式下使用未定义变量的编译错误。
+use warnings;
+#无警告，尽管使用了undef
+my $name = undef // "junmajinloing";
+use strict;
+#报错，使用了未定义变量myname
+my $name = $myname // "junmajinloing";
+```
+## 条件判断 if、unless、？：
+```
+COND可以是任意一个表示布尔值的值或表达式，它是一个标量上下文。Perl中任何一个需要进行条件判断的地方都是标量上下文。
+
+if(COND){  # 或者 unless(COND)
+  command
+}
+
+if(COND1){  # 或者 unless(COND1)
+  command1
+}elsif(COND2){
+  command2
+}elsif(COND3){
+  command3
+} else {
+  commandN
+}
+
+if(COND){  # 或者 unless(COND)
+  command1
+}else{
+  command2
+}
+
+
+#如果数组元素数量大于等于5，则输出前5个元素
+if(@arr >= 5){
+  say "@arr[0..4]";
+}
+#除非数组元素数量小于5，否则就输出前5个元素
+unless(@arr < 5){
+  say "@arr[0..4]";
+}
+
+
+#如果$score小于60分，则mark为c
+#如果大于等于60小于80，则mark为b
+#如果大于等于80小于90，则mark为c
+#其余情况，mark为d
+$mark = ($score < 60) ? "c" : 
+        ($score < 80) ? "b" : 
+        ($score < 90) ? "a" : 
+        "a++";          # 默认值
+say $mark;
+
+```
+## while、until
+* 对于while循环，只要条件判断为布尔真，就执行循环体，直到条件判断为假
+* 对于until循环，只要条件判断为布尔假，就执行循环体，直到条件判断为真
+* 注意条件判断处于标量上下文
+```
+while(CONDITION){
+    commands;
+}
+
+until(CONDITION){
+    commands;
+}
+
+
+my $i = 0;
+while($i<10){
+  say $i;
+  $i++;
+}
+
+while(my($k,$v)=each %p){
+  say "k: $k, v: $v";
+}
+```
+## for、foreach
+
+```
+for (my $i = 1;$i<=10;$i++ ){
+    print $i,"\n"; # 输出1到10
+}
+
+#每次删除字符串开头一个字符，直到删除完所有字符
+for(my $str="junmajinlong";$str =~ s/(.)//;){
+  say $str;
+}
+
+#无限循环
+for(;;){
+  say "never stop";
+}
+
+
+#循环5次
+for (1..5){
+  say $_;
+}
+
+#遍历数组
+my @arr1 = qw(a b c d e f);
+for my $i (@arr1){
+  say $i;
+}
+
+#带索引的数组遍历
+my @arr2 = qw(a b c d e f);
+for(0..$#arr2){
+  say "index: $_, value: $arr2[$_]";
+}
+
+修改$i也会影响原始数据
+my @arr = qw(1 2 3 4 5);
+for (@arr){
+  say $_;
+  $_++;
+}
+say "@arr";   # 2 3 4 5 6
+
+改变列表长度，也会影响迭代过程
+my @arr = qw(1 2 3 4 5);
+for (@arr){
+  say $_;        # 输出1 3 5
+  shift @arr;
+}
+say "@arr";   # 4 5
+```
+## last、next、redo
+
+* last相当于其它语言里的break关键字，用于退出循环(包括for/foreach/while/until/纯语句块)
+* next相当于其它语言里的continue关键字，用于跳入下一轮循环
+* redo用于跳转到当前循环层次的顶端，使得本轮循环从头开始再次执行
+```
+#当变量i等于5时退出循环
+#该循环将输出1 2 3 4
+for my $i (1..10){
+  if($i==5){
+    last;
+  }
+  say $i;
+}
+
+
+#当变量i等于5时进入下一轮循环
+#该循环将输出1 2 3 4 6 7 8 9 10
+for my $i (1..10){
+  $i == 5 and next;
+  say $i;
+}
+
+
+#当变量i等于5时，再次执行第5轮循环
+#该循环将输出2 3 4 6 6 7 8 9 10 11
+for my $i (1..10){
+  $i++;
+  $i == 5 and redo;
+  say $i;
+}
+```
+## 标签 label
+Perl允许为循环结构打标签，为循环结构打标签后，last、next等可以控制循环流程的关键字就可以指定要控制哪个层次的循环结构。
+```
+LABEL while (EXPR) BLOCK
+LABEL until (EXPR) BLOCK
+LABEL for (EXPR; EXPR; EXPR) BLOCK
+LABEL for VAR (LIST) BLOCK
+LABEL foreach (EXPR; EXPR; EXPR) BLOCK
+LABEL foreach VAR (LIST) BLOCK
+#纯语句块也可以打标签，它是执行一次的循环结构
+LABEL BLOCK  
+```
+默认情况下，last、next和redo控制的都是当前层次的循环结构，可以为它们指定标签来决定要控制哪个外层循环。下面是使用标签控制外层循环的一个示例：
+```
+OUTER:
+while (1) {
+    print "start outer\n";
+    while (1) {
+        print "start inner\n";
+        last OUTER;
+        print "end inner\n";
+    }
+    print "end outer\n";
+}
+print "done\n";
+
+
+输出：
+start outer
+start inner
+done
+```
+# 常用函数
 ## 取整 int
 截断为整数，如  
 say int(3.78);  # 3
@@ -402,8 +538,155 @@ printf "%o\n", 420;  # 644
 printf "%b\n", 3;    # 11
 printf "%x\n", 50;   # 32
 ```
-## 字符串处理
-### 移除尾部换行符 chomp
+
+
+
+# 字符串相关
+## 字符串字面量
+和Shell类似，使用双引号或单引号包围
+* 双引号：双引号包围的是字符串字面量，但允许在双引号内使用变量内插(Interpolate)、表达式内插、反斜线转义、反斜线字符序列
+* 单引号：单引号包围的字符串字面量不允许使用变量内插、表达式内插、反斜线序列，也禁止几乎所有的反斜线转义，只允许对单引号自身和反斜线自身进行反斜线转义
+
+```
+#!/usr/bin/perl
+use 5.12;
+use warnings;
+
+my $name = "junma";
+my $age = 23;
+
+say "hello";   # hello，普通字符串
+say 'hello';   # hello，普通字符串
+
+# 双引号内可以使用反斜线转义，可以使用单引号
+# 单引号内只能转义单引号和反斜线，可以使用双引号
+say "hello\"world, hello'world";  # hello"world, hello'world
+say 'hello\'world, hello"world';  # hello'world, hello"world
+say "hello\\world";  # hello\world
+say 'hello\\world';  # hello\world
+
+# 双引号内可以变量内插，单引号内不能变量内插
+say "hello $name";    # hello junma
+say 'hello $name';    # hello $name
+
+# 双引号内可以表达式内插，单引号内不能表达式内插
+say "age: @{[$age+2]}";  # age: 25
+say 'age: @{[$age+2]}';  # age: @{[$age+2]}
+
+# 双引号内转义变量内插、转义表达式内插
+say "hello \$name";      # hello $name
+say "age: \@{[$age+2]}"; # age: @{[23+2]}
+
+# 双引号内可以使用反斜线字符序列，单引号内不允许使用
+say "hello\tworld";  # hello  world
+say 'hello\tworld';  # hello\tworld
+
+my @arr = (11, 22, 33);
+say "@arr";     # 输出：11 22 33
+my %person = (name=>"junma", age=>23);
+say "%person";  # 输出：%person，hash变量不内插
+
+
+
+[huawei@n148 perl]$ perl 1.pl
+
+[huawei@n148 perl]$ perl 1.pl
+hello
+hello
+hello"world, hello'world
+hello'world, hello"world
+hello\world
+hello\world
+hello junma
+hello $name
+age: 25
+age: @{[$age+2]}
+hello $name
+age: @{[23+2]}
+hello   world
+hello\tworld
+11 22 33
+%person
+```
+## 转义字符
+* \u 修改下一个字符为大写
+* \l 修改下一个字符小写 
+* \U 修改后面所有字符大写 
+* \L 修改后面所有字符小写 
+* \Q 使后面的所有字符都成为字面符号
+* \E 结束\U \L或\Q的效果
+```
+#!/usr/bin/perl
+use 5.12;
+say "\uabc"; # 输出Abc
+say "\Uabc"; # 输出ABC
+say "ab\Ucxyz";   # 输出abCXYZ
+say "ab\Ucx\Eyz"; # 输出abCXyz
+# 将匹配的字符换成大写
+my $name = "junmajinlong";
+$name =~ s/([j-n])/\U\1\E/g;
+say $name;    # 输出：JuNMaJiNLoNg
+
+[huawei@n148 perl]$ perl 1.pl
+Abc
+ABC
+abCXYZ
+abCXyz
+JuNMaJiNLoNg
+```
+## q、qq
+如果一个字符串比较复杂，使用单双引号包围字符串可能会非常麻烦。Perl中可以使用q实现单引号相同的引用功能，使用qq实现双引号相同的引用功能。
+```
+#!/usr/bin/perl
+use 5.12;
+
+say q!abc!;
+say q<abc>;
+say qq{abc};
+
+say qq 1def1;   # 等价于qq(def)
+say qq adefa;   # 等价于qq(def)
+
+say qq{abc\}def};  # 转义终止符
+say qq{abc\{def};  # 转义起始符
+say qq ad\aefa;    # 转义起始符a，输出daef
+
+say qq{ab{cd}e};   # ab{cd}e
+
+
+[huawei@n148 perl]$ perl 1.pl
+abc
+abc
+abc
+def
+def
+abc}def
+abc{def
+daef
+ab{cd}e
+
+```
+## 字符串连接和重复
+Perl使用点.来串联字符串。Perl使用x(字母x)来重复字符串指定次数，如果x重复次数是小数，则截断为整数，如果x是0，则清空字符串。
+```
+#!/usr/bin/perl
+use 5.12;
+my $name = "junmajinlong";
+say "www.".$name.".com";  # 输出：www.junmajinlong.com
+say '-' x 5;   # 重复5次，输出：-----
+say '-' x 5.6;  # 输出-----
+say '-' x 0;    # 输出空字符串
+
+
+[huawei@n148 perl]$ perl 1.pl
+www.junmajinlong.com
+-----
+-----
+
+[huawei@n148 perl]$
+
+```
+## 移除尾部换行符 chomp
 移除尾部换行符，如果尾部没有换行符，则不做任何事。实际上，chomp移除的是$/变量值对应的字符，该变量表示输入记录分隔符，默认为换行符，因此默认移除字符串尾部换行符。注意：
 * chomp不能对字符串字面量进行操作
 * chomp可以对左值进行操作
@@ -431,7 +714,7 @@ chomp %lines;
 say "$lines{line1}, $lines{line2}";  # abc def
 ```
 
-### 去除行尾字符 chop
+## 去除行尾字符 chop
 是chomp的通用版，移除尾部单个字符，等价于s/.$//s，但效率更高。
 ```
 my $name1 = "junmajinlong\n";
@@ -442,7 +725,7 @@ chop $name2;   # $name2 = "junmajinlon"
 
 
 
-### 取子串 substr
+## 取子串 substr
 语法
 ```
 substr STRING,OFFSET,LENGTH,REPLACEMENT
@@ -473,7 +756,31 @@ say $str;       # 源字符串已被替换：love fairy's everything
 
 ```
 
-### 分段 split
+## 分段 split
+## 字符串字符数 length
+返回字符串字符数。不能用于数组和hash。注意，如果包含多字节字符，要加上use utf8才能计算出字符数量。
+```
+此处结果待修正。。。
+
+say length("abc");     # 3
+say length("我爱你");  # 9
+
+# 加上use utf8
+use utf8;
+say length("我爱你啊a");  # 5
+```
+## 加密字符串 crypt
+实际上是计算MD5摘要信息。第一个参数是待计算摘要的字符串，第二个参数是salt字符串，salt至少两个字符且只取前两个字符(salt允许使用的字符为[0-9a-zA-Z./]共64个字符)。
+如果待计算的字符串相同，且salt相同，那么计算出来的摘要信息一定相同。计算的结果中，前两位是salt的前两位字符，后面11位是计算结果。
+```
+say crypt("hello", "world");  # woglQSsVNh3SM
+say crypt("hello", "wo");     # woglQSsVNh3SM
+say crypt("hello", "wx");     # wxNrzGG7p9cyw
+```
+
+## sprintf
+
+
 
 ## 字符索引
 用来找出给定字符串中某个子串或某个字符的索引位置。
@@ -500,31 +807,64 @@ say rindex $str,"you";    # 输出：13
 say rindex $str,"you",10; # 找出offset=10左边的最后一个you，输出：5
 ```
 
-## 字符串字符数 length
-返回字符串字符数。不能用于数组和hash。注意，如果包含多字节字符，要加上use utf8才能计算出字符数量。
+# 范围 .. 与 ...
+可以使用两点运算符..或三点运算符...表示一个范围。在列表上下文中两者等价，在标量上下文中两者不等价。
+* 用于列表  
+在列表上下文中，对于范围A..B来说，它返回从A到B中间所有的值，且包含边界的A和B，每一个值都是前一个值自增(即++运算符)之后的结果。如果左边的A值大于右边的B值，将表示空范围。
 ```
-此处结果待修正。。。
+my @arr1 = 1..3;   # 1 2 3
+my @arr2 = ('A'..'Z'); # 所有大写字母
+my @arr3 = ('a'..'z'); # 所有小写字母
+my @arr4 = ('a'..'z','A'..'Z'); # 所有大小写字母
+my @arr5 = (0,3..5,7,10..20); # 离散数据：0 3 4 5 7 10到20
+my @arr6 = ('01'..'31');  # 两位数日期
+my @arr7 = ('01'..'12');  # 两位数月份
 
-say length("abc");     # 3
-say length("我爱你");  # 9
+#循环10次
+for(1..10){
+  say $_;
+}
+```
+* 用于标量  
+在标量上下文中，范围表示一个布尔值。
 
-# 加上use utf8
-use utf8;
-say length("我爱你啊a");  # 5
+    A..B：从表达式A返回布尔真开始，到表达式B返回布尔真结束，评估表达式A之后会立即评估表达式B
+    A...B：从表达式A返回布尔真开始，到表达式B返回布尔真结束，评估表达式A之后不会立即评估表达式B，而是下一次再评估B
+
 ```
-## 加密字符串 crypt
-实际上是计算MD5摘要信息。第一个参数是待计算摘要的字符串，第二个参数是salt字符串，salt至少两个字符且只取前两个字符(salt允许使用的字符为[0-9a-zA-Z./]共64个字符)。
-如果待计算的字符串相同，且salt相同，那么计算出来的摘要信息一定相同。计算的结果中，前两位是salt的前两位字符，后面11位是计算结果。
-```
-say crypt("hello", "world");  # woglQSsVNh3SM
-say crypt("hello", "wo");     # woglQSsVNh3SM
-say crypt("hello", "wx");     # wxNrzGG7p9cyw
+my $i = 0;
+#从0开始，左表达式为真，开始进入范围
+#到5结束，此时右表达式为真，结束范围
+#范围不要放在for、foreach里，它们是列表上下文
+while(($i==0)..($i==5)){
+  say $i;   # 输出：0 1 2 3 4 5
+  $i++;
+}
+
+
+my $i = 0;
+#i为0时，左右表达式都为真，立即终止范围
+#因此只输出0
+while(($i==0)..($i>=0)){
+  say $i;
+  $i++;
+}
+
+$i = 0;
+# 变量i为0时，左表达式为真，开始进入范围，
+# 此时不评估右表达式，第二轮循环才评估右表达式
+# 因此输出0和1
+while(($i==0)...($i>=0)){
+  say $i;
+  $i++;
+}
+
 ```
 
-## sprintf
 # 数组
-数组名指向堆中的连续内存，堆中的连续内存里的每个地址再分别指向具体元素的地址，如下图。数组元素可以异质
-![](https://perl-book.junmajinlong.com/imgs/1610678693613.png)
+数组名指向堆中的连续内存，堆中的连续内存里的每个地址再分别指向具体元素的地址，如下图。数组元素可以异质。  
+![](https://perl-book.junmajinlong.com/imgs/1610678693613.png)  
+多数时候，数组可以当作列表来使用，原因是操作列表的地方期待一个列表，perl会隐式地将数组转换为列表。因此常见列表操作多数也适用于数组。数组的常见操作还有：each、pop、push、shift、unshift、keys、values、splice。  
 ## 创建 qw
 qw的全称是quote words，即自动引用单词。perl会在编译期间将qw所引用的单词自动替换为单引号。qw中使用空格分隔各元素，如果某个元素包含空格，则无法使用qw字面量语法
 ```
@@ -641,7 +981,7 @@ print/say输出时，默认使用内置变量$,来分隔列表各元素，该内
 $, = "_";   # 将其修改为下划线
 say @arr,'a','b';  # 11_22_33_a_b
 ```
-## 数组转标量
+## 转标量（得length）
 数组转换为标量得到的是数组的长度
 ```
 my @arr = (11,22,33,44);
@@ -658,32 +998,7 @@ say ~~@arr;
 # 使用scalar强制转换为标量数据
 say scalar @arr;
 ```
-## 列表
-* Perl中的列表不是数据类型，而是Perl在内部用来临时存放数据的一种方式，只能由Perl自行维护。
-* 列表临时保存在栈中，当使用了列表数据后，这些列表数据就会出栈
-* 可以将Perl列表看作是一种特殊的底层可迭代对象，它看起来像数组，但不是数组。
-```
-my @arr = (11,22,33);  # 数组arr的元素来自于列表
-```
-* push与pop这类仅用于数组，元素排序、元素筛选、迭代遍历等操作，才用于列表
 
-## 列表转标量
-列表会返回最后一个列表元素作为标量数据，其他元素被丢弃。
-```
-my $a = (11,22,33);
-my $b = qw(11 22 33);
-say $a, "-", $b;   # 输出：33-33
-
-
-say "h".(1,2,3,4);  # 输出：h4
-say ~~(11,22,33);   # 输出：33
-
-
-my @arr = (11,22,33);
-@arr = @arr + (55,66); # 数组转标量得到元素数量，等价于@arr=3+66
-say "@arr";         # 输出69
-
-```
 ## 切片 Slice
 * 切片时中括号里提供的索引是一个列表，索引可以重复，可以用负数索引，可以用范围表达式(如1..3表示1 2 3)。但要注意，索引越界将取得undef值。
 
@@ -732,7 +1047,7 @@ say "@langs";   # perl ruby bash php
 
 ```
 #!/usr/bin/perl
-use v5.12;
+use 5.12;
 my @arr = qw(a b c d e f);
 
 #while
@@ -764,7 +1079,7 @@ index: 5, value: f
 
 
 #!/usr/bin/perl
-use v5.12;
+use 5.12;
 my @arr = qw(a b c d e f);
 
 #for
@@ -808,4 +1123,475 @@ say "@arr";  # 输出：12 23 34 45
 for(11,22,33){ say $_; }
 for $_ (11,22,33) { say $_; }
 ```
-## 小心使用each
+## each
+
+## keys、values
+* keys函数在列表上下文返回数组的所有索引或hash的所有key，在标量上下文返回数组或hash的元素数量
+* values函数在列表上下文返回数组的所有元素或hash的所有value，在标量上下文返回数组或hash的元素数量
+```
+my @arr = (11, 22, 33, 44);
+列表上下文
+my @arr_keys = keys @arr;
+my @arr_values = values @arr;
+
+say "@arr_keys";    # 0 1 2 3
+say "@arr_values";  # 11 22 33 44
+
+for(keys @arr){say $_;}   # 0 1 2 3
+for(values @arr){ say $_; } # 11 22 33 44
+
+values获取的值是对元素的引用，因此修改values获取的值，也将修改源数据。
+my @arr_values = values @arr;
+$arr_values[0] = 111;
+say "@arr_values";   # 111 22 33 44
+```
+## pop、push、shift、unshift
+* pop从数组中移除并返回最后一个元素，数组为空则返回undef
+* push向数组尾部追加一个元素或一个列表，返回追加完成后数组长度
+* shift移除并返回数组第一个元素，数组为空则返回undef
+* unshift向数组头部添加一个元素或一个列表，返回追加完成后数组长度
+```
+#!/usr/bin/perl
+use 5.12;
+use warnings;
+# pop
+my @arr1 = (11,22,33);
+say pop @arr1;  # 33
+say pop @arr1;  # 22
+say pop @arr1;  # 11
+say pop @arr1;  # undef，警告模式下会给出警告，类似这样“ Use of uninitialized value in say at 1.pl line 9.” ，否则就不打印警告，只是个空行
+
+# shift
+my @arr2 = (11,22,33);
+say shift @arr2;  # 11
+say shift @arr2;  # 22
+say shift @arr2;  # 33
+say shift @arr2;  # undef，警告模式下会给出警告
+
+
+# push
+my @arr1 = (11,22,33);
+push @arr1, 44;      # 追加单个元素
+push @arr1, 55, 66;  # 追加列表，列表的小括号被省略
+say push @arr1, (77,88); # 输出8，push返回数组长度
+say "@arr1";  # 11 22 33 44 55 66 77 88
+
+# unshift
+my @arr2 = (11,22,33);
+unshift @arr2, 'a', 'b';
+unshift @arr2, qw(aa bb);
+say "@arr2"; # aa bb a b 11 22 33
+```
+## splice
+语法
+```
+splice ARRAY
+splice ARRAY,OFFSET
+splice ARRAY,OFFSET,LENGTH
+splice ARRAY,OFFSET,LENGTH,LIST
+```
+* 一个参数时，即splice ARRAY，表示清空ARRAY。
+```
+use 5.12;
+@arr=qw(perl py php shell);
+@new_arr=splice @arr;
+say "original arr: @arr";   # 输出：空
+say "new arr: @new_arr";    # 输出原列表内容
+
+
+如果splice在标量上下文，则返回最后一个被移除的元素
+my @arr=qw(perl py php shell);
+my $new_arr=splice @arr;
+say "$new_arr";    # 输出：shell
+```
+* 两个参数时，即splice ARRAY,OFFSET，表示从OFFSET处开始删除元素直到结尾。
+```
+@arr=qw(perl py php shell);
+@new_arr=splice @arr,2;
+say "original arr: @arr";   # 输出：perl py
+say "new arr: @new_arr";    # 输出：php shell
+
+如果offset为负数，则表示从后向前数第几个元素，-1表示最后一个元素。
+use 5.010;
+@arr=qw(perl py php shell);
+@new_arr=splice @arr,-3;
+say "original arr: @arr";    # 输出：perl
+say "new arr: @new_arr";     # 输出：py php shell
+```
+* 三个参数时，即splice ARRAY,OFFSET,LENGTH，表示从OFFSET处开始向后删除LENGTH个元素。
+```
+use 5.010;
+@arr=qw(perl py php shell ruby);
+@new_arr=splice @arr,2,2;
+say "original arr: @arr";   # 输出：perl py ruby
+say "new arr: @new_arr";    # 输出：php shell
+
+如果length为负数，则表示从offset处开始删除，直到尾部还保留-length个元素(例如length为-3时，表示尾部保留3个元素)。
+use 5.010;
+@arr=qw(perl py php shell ruby java c c++ js);
+@new_arr=splice @arr,2,-2;   # 从php开始删除，最后只保留c++和js两个元素
+say "original arr: @arr";    # 输出：perl py c++ js
+say "new arr: @new_arr";     # 输出：php shell ruby java c
+```
+* 四个参数时，即splice ARRAY,OFFSET,LENGTH,LIST，表示将LIST插入到删除的位置，也就是替换数组的部分位置连续的元素。
+```
+use 5.010;
+@arr=qw(perl py php shell ruby);
+@list=qw(java c);
+@new_arr=splice @arr,2,2,@list;
+say "original arr: @arr";   # 输出：perl py java c ruby
+say "new arr: @new_arr";    # 输出：php shell
+
+如果想原地插入新元素，而不删除任何元素，可以将length设置为0，它会将新列表插入到offset的位置。
+use 5.010;
+@arr=qw(perl py php shell ruby);
+@list=qw(java c);
+@new_arr=splice @arr,2,0,@list;
+say "original arr: @arr";   # 输出：perl py java c php shell ruby
+say "new arr: @new_arr";    # 输出：空
+```
+# 列表
+* Perl中的列表不是数据类型，而是Perl在内部用来临时存放数据的一种方式，只能由Perl自行维护。
+* 列表临时保存在栈中，当使用了列表数据后，这些列表数据就会出栈
+* 可以将Perl列表看作是一种特殊的底层可迭代对象，它看起来像数组，但不是数组。
+```
+my @arr = (11,22,33);  # 数组arr的元素来自于列表
+```
+* push与pop这类仅用于数组，元素排序、元素筛选、迭代遍历等操作，才用于列表
+* 列表常见操作包括：grep、join、map、reverse、sort、unpack、x操作符执行列表重复，等等
+* 标准库List::Utils中也提供了很多常见的列表操作，如reduce、first、any、sum、uniq、shuffle等。
+
+## 转标量（空得undef，非空得尾元素）
+列表会返回最后一个列表元素作为标量数据，其他元素被丢弃。
+```
+my $a = (11,22,33);
+my $b = qw(11 22 33);
+say $a, "-", $b;   # 输出：33-33
+
+
+say "h".(1,2,3,4);  # 输出：h4
+say ~~(11,22,33);   # 输出：33
+
+
+my @arr = (11,22,33);
+@arr = @arr + (55,66); # 数组转标量得到元素数量，等价于@arr=3+66
+say "@arr";         # 输出69
+
+```
+## 列表重复 x
+列表重复通常用于初始化构建一个特定大小的数组，也常用于生成测试数据
+```
+my @arr = (1, 2) x 3;	#@arr = (1,2,1,2,1,2)
+
+#创建包含100个undef元素的数组
+#等价于$arr[99] = undef;
+my @arr = (undef) x 100;
+
+#生成一个大数组(20W个元素)，用于某些测试
+my @test_data = (11,22) x 100000;
+
+一定要注意，不能将操作符x用于数组，因为x会被解析成字符串重复操作，使得数组处于标量上下文，然后进行字符串重复
+my @arr = (11,22);
+say @arr x 3;  # 输出：222
+
+如果需要对数组进行重复，将它放进小括号转换为列表即可：
+my @arr = (11,22);
+@arr = (@arr) x 3;
+```
+## join
+用给定字符将列表中各元素连接起来，返回连接后的字符串。
+```
+say join "-",qw(a b c d e);   # 输出："a-b-c-d-e"
+```
+## split
+使用给定分隔符将字符串划分为列表，分隔符支持使用正则表达式。
+在列表上下文，返回划分后得到的列表，在标量上下文，返回划分后列表的元素数量。
+
+语法：
+```
+split /PATTERN/,EXPR,LIMIT
+split /PATTERN/,EXPR
+split /PATTERN/
+split
+```
+
+```
+my $str="abc:def::123:xyz";
+my @list = split /:/,$str;
+say join ',', @list;   # abc,def,,123,xyz
+
+my $str="abc:def::12:xyz";
+my @list = split /::/,$str;     # 返回："abc:def","12:xyz"
+my @list = split /[:]+/,$str;   # 返回："abc","def","12","xyz"
+my @list = split /[:0-9]/,$str; # 返回："abc","def","","","","","xyz"
+
+
+可以加上一个limit参数，限制最多分隔为多少个元素。例如，指定limit=2，表示只分隔一次
+my $str="abc:def::123:xyz";
+my @list = split /:/,$str,2;   # 返回"abc","def::123:xyz"两个元素
+
+省略limit时，默认limit=0，表示尽可能多地划分元素，且忽略后缀空元素，但会保留前缀空元素。limit为负数时，几乎等价于limit=0，但不忽略后缀空元素。
+my $str=":::abc:def:123:xyz::::";
+my @new_list1=join(".",split /:/,$str);
+my @new_list2=join(".",split /:/,$str, -1);
+
+say "@new_list1";   # ...abc.def.123.xyz
+say "@new_list2";   # ...abc.def.1234.xyz....
+
+省略字符串参数时(意味着也必须省略limit)，split默认对$_进行划分：
+split /:/;   # 等价于 split /:/, $_;
+
+
+将pattern指定为空格" "时(注意，不是正则里的空格/ /)，和awk的行为一样：忽略前缀空白，且将一个或多个空白作为分隔符
+my $str = "  a  b    c   ";
+my @arr = split " ", $str;
+say join ",", @arr;   # a,b,c
+
+
+省略pattern时(意味着后面其他参数也被省略)，即不带任何参数的split，默认pattern为空格" "，对$_变量进行划分
+
+将pattern指定为//时(空正则表达式)，字符串的各字符都被划分
+my $str = "abc";
+my @arr = split //, $str;
+say join ",", @arr;   # a,b,c
+```
+## grep
+从列表中筛选符合条件的元素，在列表上下文返回符合条件的元素列表，在标量上下文中返回符合条件的元素数量。grep会迭代列表中的每一个元素，并将这些元素逐次【赋值】给默认变量$_，在给定的语句块{BLOCK}中可以使用该默认变量，
+```
+my @nums = (11,22,33,44,55,66);
+my @odds = grep {$_ % 2} @nums;   # 取奇数
+my @evens = grep {$_ % 2 == 0} @nums;  # 取偶数
+say "@odds";
+say "@evens";
+
+当BLOCK中的代码评估结果为布尔真，则将本次迭代的元素放进返回值列表中等待被返回。当BLOCK中只有一条语句或一个表达式时可以去除{}
+grep $_ % 2, @nums;
+grep $_ % 2 == 0, @nums;
+
+
+grep在迭代列表各元素时，$_是各元素的别名引用，在代码块中修改$_，也将影响到源列表，也因此会影响返回值列表。
+my @nums = (11,22,33,44,55,66);
+my @arr = grep {$_++; $_ % 2} @nums;
+say "@arr";     # 23 45 67
+say "@nums";    # 12 23 34 45 56 67
+```
+## map
+map迭代列表的每个元素，并将表达式或语句块中返回的值放进一个列表中，最后返回这个列表。
+```
+my @chars = map(chr, (65..70));
+say "@chars";  # A B C D E F
+
+my @arr = map { $_ * 2 } (1..5);
+say "@arr";  # 2 4 6 8 10
+
+当语句块中只有一条语句时，可使用表达式写法。
+my @arr = map $_*2, (1..5);
+say "@arr";  # 2 4 6 8 10
+
+
+如果语句块中返回空列表()，相当于没有向返回列表中追加元素。例如：
+my @arr = (11,22,33,44,55);
+#@evens = (undef,22,undef,44,undef)
+my @evens = map {$_ if $_%2==0} @arr;
+
+#@evens = (22,44)
+my @evens = map {$_%2==0 ? $_ : ()} @arr;
+#等价于 map {$_} grep {$_%2==0} @arr;
+
+
+map允许在一个迭代过程中保存多个元素到返回列表中。
+my @name=qw(ma long shuai);
+my @new_names=map {$_,$_ x 2} @name;
+say "@new_names";  # ma mama long longlong shuai shuaishuai
+```
+## sort
+sort用于对列表元素进行排序，返回排序后的列表。
+```
+my @str=qw(abc Abc ABc 123);
+my @sorted=sort @str;
+say "@sorted";     # 123 ABc Abc abc
+
+
+my @nums = (11,33,4,55,7,12);
+
+#升序排序
+my @sorted_nums_asc = sort {$a<=>$b} @nums;
+#降序排序
+my @sorted_nums_desc = sort {$b<=>$a} @nums;
+say "@sorted_nums_asc";  # 4 7 11 12 33 55
+say "@sorted_nums_desc"; # 55 33 12 11 7 4
+```
+## reverse
+reverse用于反转列表：在列表上下文中返回元素被反转后的列表，在标量上下文中，返回原始列表各元素组成的字符串的反转字符串
+```
+my @arr1 = qw(aa bb cc dd);
+say "@{[reverse @arr1]}";  # dd cc bb aa
+say ~~(reverse @arr1);     # ddccbbaa，返回aabbccdd的反转
+
+say ~~reverse "hello";  # olleh
+```
+# 哈希
+* hash结构中的key是唯一的
+* hash结构不保证键值对的顺序
+* hash结构的内存空间利用率不高
+* hash结构的搜索速度和增删键值对的速度很快，且不会随着所存储键值对元素数量的增长而变慢，它由hash桶的大小决定
+* 当某次向hash中存储键值对时因空间不够而触发了扩容，速度会很慢
+## 创建与赋值
+```
+my %person = (
+  "name"  , "junmajinlong",
+  "age"   , 23,
+  "gender", "male"
+);
+
+my %person = (
+  "name"  => "junmajinlong",
+  "age"   => 23,
+  "gender"=> "male"
+);
+
+my %person = (
+  name   => "junmajinlong",
+  age    => 23,
+  gender => "male"
+);
+
+say "$person{name}";
+say $person{"age"};
+
+如果访问hash中不存在的key，则返回undef，而不会报错：
+say $person{class};  # undef
+
+hash变量不能内插到双引号。
+say "%person";   # 直接输出：%person
+
+可以这样添加数据与赋值
+$h{k1} = "v1";
+
+使用2个变量组合作为k
+my %h;
+my ($x, $y) = qw(x, y);
+$h{$x.$y} = "junmajinlong.com";  # 等价于$h{"$x$y"}
+say $h{"$x$y"};
+
+
+上面的方式不安全，当使用逗号分隔多份数据组合为key时，Perl会自动将每份数据使用下标连接符(默认值为\034)连接起来，最终得到的字符串作为key。\034通常可以认为是安全的连接符，它是一个ASCII中的控制字符，几乎不会出现在文本数据中。
+my %h;
+my ($x, $y) = qw(x y);
+$h{$x, $y, "name"} = "junmajinlong.com";
+say $h{$x, $y, "name"};
+say $h{"$x\034$y\034name"};  # 等价形式
+
+Perl使用的下标连接符由内置变量$;控制，该内置变量的默认值为\034。因此，下面这种写法也和上面的写法等价。
+say $h{join($;, $x, $y, "name")};
+```
+## 转列表（得kv们相连）
+在列表上下文，hash变量会自动隐式转换为(k1,v1,k2,v2,k3,v3)格式的列表。
+```
+my %person = (
+  name   => "junmajinlong",
+  age    => 23,
+  gender => "male"
+);
+
+#hash展开成列表，默认所有的key和value紧密相连输出
+#修改内置变量`$,`可设置say/print输出时的列表分隔符
+say %person;  # namejunmajinlonggendermaleage23
+$, = "-";
+say %person;  # name-junmajinlong-gender-male-age-23
+```
+## 转标量（空得0，非空得M/N）
+在标量上下文，如果hash为空，则转换为数值0，如果hash结构非空，则hash变量会转换为m/n格式的标量，m表示当前的键值对数量，n表示hash结构当前的容量。因此，可以直接将hash变量作为布尔值判断：非空hash为true、空hash为false。
+```
+my %h;     # 空hash
+say ~~%h;  # 输出：0
+if(%h){say "empty hash"}  # 不输出
+
+$h{k1} = "v1";
+say ~~%h;   # 输出：1/8
+if(%h){say "not empty hash"}  # 输出
+
+
+
+将hash变量赋值给另一个hash变量时，由于赋值hash时在列表上下文，因此会先将hash展开为列表，再赋值。
+my %person = (
+  name   => "junmajinlong",
+  age    => 23,
+  gender => "male"
+);
+
+my %p = %person;  # %person展开为列表，然后构建%p
+```
+## 切片（批量赋值与取值）
+```
+my %phone_num = (
+  longshuai =>"18012345678",
+  xiaofang =>"17012345678",
+  tun_er =>"16012345678",
+  fairy =>"15012345678"
+);
+#双引号中内插hash切片
+say "@phone_num{qw(fairy longshuai)}";
+#hash切片作为左值
+@phone_num{qw(fairy longshuai)} = qw(155555555 188888888);
+say "@phone_num{qw(fairy longshuai)}"; # 输出：155555555 188888888
+my ($a,$b,$c) = @phone_num{qw(xiaofang fairy xiaofang)};
+say $a;
+say $b;
+say $c;
+```
+## keys和values
+keys和values分别用来获取hash的key列表和value列表。注意，hash各元素的出现顺序是不可预测的。
+```
+my %h = qw(k1 v1 k2 v2 k3 v3);
+my @keys = keys %h;
+my @values = values %h;
+say "keys: @keys";     # 输出：keys: k3 k2 k1
+say "values: @values"; # 输出：values: v3 v2 v1
+```
+## 遍历
+```
+my %h = qw(k1 v1 k2 v2 k3 v3);
+while(my ($k, $v) = each %h){
+  say "key: $k, v: $v";
+}
+
+#foreach迭代遍历key
+foreach my $k (sort keys %h){
+ say $k, $h{$k};
+}
+
+#迭代遍历value
+foreach my $v (values %h){
+  say $v;
+}
+```
+## 判断k存在 exists
+exists用来判断hash结构中是否存在某个key，如果存在则返回表示布尔真的结果(数值1)。由于Perl中访问hash结构中不存在的键值对时不会报错，而是返回undef，因此有时候也会直接使用hash索引的方式来测试。但注意，如果key存在于hash结构中，但其对应的值表现为布尔假(即value为undef、0或空字符串等值)时，两种方式测试结果将不同。  
+总的来说就是使用exists函数比较安全
+```
+my %h;
+if(exists $h{k1}){say "1"} # 不输出
+if($h{k1}){say "2"} # 不输出
+
+$h{k1} = undef;
+if(exists $h{k1}){say "3"}  # 输出
+if($h{k1}){say "4"}  # 不输出
+```
+## 删除与清空
+```
+my %hash = (
+  a => "aa",  b => "bb",
+  c => "cc",  d => "dd"
+);
+
+delete $hash{a};         # 删除单个键值对
+delete @hash{qw(b c)};   # 根据hash切片删除
+$, = "-";
+say %hash;   # d-dd
+
+# 清空
+%hash = ();     # 直接清空hash
+undef %hash;    # 注销hash变量
+say %hash;
+```
