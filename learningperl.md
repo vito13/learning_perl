@@ -1,4 +1,20 @@
 # 基础知识
+## 内存布局
+当声明变量时，Perl会为该变量初始化(默认初始化为undef)，它在栈中保存了一个内存地址，以后向该变量赋值时，数据都将存放在栈中这个地址所指向的内存处。
+```
+my $n;
+$n = 33;
+$n = 'junma';
+```
+![](https://perl-book.junmajinlong.com/imgs/2021-01-25_19-49-17.png)
+Perl中的数组、hash结构，它们保存的元素也都是各数据的引用，而不是直接将数据保存在数组或hash容器中。
+```
+my @arr = qw(a b c);
+my %hash = (one=>1, two=>2, three=>3,);
+```
+![](https://perl-book.junmajinlong.com/imgs/2021-01-25_23-46-43.png)
+
+## Sigil
 Perl在做变量赋值时、在使用变量时，都会在变量前加上变量前缀，这些特殊的前缀，在Perl中称为Sigil。Sigil前缀隐含了多种含义，其中之二是：
 * 根据变量所保存的内存地址去访问该地址所指向的内存空间
 * 根据Sigil类型决定如何划分以及如何访问内存空间
@@ -8,8 +24,27 @@ $前缀表示标量，只划分或只访问一个内存数据空间(chunk)。Per
 @前缀表示数组，划分或访问多个内存数据空间
 ## hash %
 %前缀表示hash，划分或访问多个用于存放key-value的内存数据空间
-## 引用（取地址） \
+
+## 按值拷贝
+```
+将$b赋值给$a时，根据Sigil的规则，出现在赋值操作符左边的$a表示写内存，出现在赋值操作符右边的$b表示读内存数据。也就是说，读取$b保存在堆内存中的数据，并将其写入$a对应的内存空间。因此，内存中将存在两份值相同但地址不同的数据。
+
+[huawei@n148 perl]$ cat 1.pl
+#!/usr/bin/perl
+use 5.12;
+my $b = "junmajinlong";
+my $a = $b;
+say \$a;
+say \$b;
+
+[huawei@n148 perl]$ perl 1.pl
+SCALAR(0x1519b88)
+SCALAR(0x1536ab0)
+```
+## 赋值
 变量初始化之后就在它的栈中保存了一个指向堆内存中某块空间的地址，由于Perl允许原地修改内存，因此栈中的这个地址在perl程序运行期间将永不改变。
+
+
 ```
 
 [huawei@n148 perl]$ cat 1.pl
@@ -71,22 +106,6 @@ junmajinlong
 ```
 
 
-## 按值拷贝赋值
-```
-将$b赋值给$a时，根据Sigil的规则，出现在赋值操作符左边的$a表示写内存，出现在赋值操作符右边的$b表示读内存数据。也就是说，读取$b保存在堆内存中的数据，并将其写入$a对应的内存空间。因此，内存中将存在两份值相同但地址不同的数据。
-
-[huawei@n148 perl]$ cat 1.pl
-#!/usr/bin/perl
-use 5.12;
-my $b = "junmajinlong";
-my $a = $b;
-say \$a;
-say \$b;
-
-[huawei@n148 perl]$ perl 1.pl
-SCALAR(0x1519b88)
-SCALAR(0x1536ab0)
-```
 ## 左值、右值
 * 当Sigil出现在赋值操作符左边时，表示对变量进行赋值。找到变量的内存地址，然后将数据写入该内存。
 * Perl并不仅仅只允许为变量赋值，还可以为数组的元素赋值，为hash的元素赋值，甚至还可以为某些函数调用后的返回结果进行赋值。
@@ -191,6 +210,152 @@ abc15
 3
 abc8
 
+```
+# 引用
+## 基础
+在变量的sigil符号前加上反斜线即表示该变量的引用。通过引用查看变量所保存数据的内存地址
+```
+my $name = "junmajinlong";
+say \$name;    # SCALAR(0x55f80476d588)
+```
+除了下面几种，还有其他类型的引用，比如子程序的引用，文件句柄的引用等
+```
+$name    ->   \$name   # 标量变量的引用
+@array   ->   \@array  # 数组变量的引用
+%hash    ->   \%hash   # hash变量的引用
+"abc"    ->   \"abc"   # 字面数据值的引用
+```
+无论是何种类型的引用，它们都是一种指针，指针中保存了其指向数据的内存地址。打印输出引用时，不同类型的引用，输出结果有所不同：
+```
+my $name = "junma";
+my @arr = qw(a b c);
+my %h = ( name => "junma", age  => 23 );
+
+say \$name;  # SCALAR(0x55ad7f974dc8)
+say \@arr;   # ARRAY(0x55ad7f974738)
+say \%h;     # HASH(0x55ad7fa99150)
+```
+引用是一种指针，因此引用是一种标量数据（数组的引用、hash的引用，也都是标量数据）。
+```
+my $n = 'junma';
+my $n_ref = \$n;
+```
+n_ref是一个标量变量，它保存变量n的引用，或者说，n_ref保存了变量n所指向字符串数据"junma"的内存地址。
+![](https://perl-book.junmajinlong.com/imgs/2021-01-25_19-55-59.png)
+
+```
+# 数组变量名和数组引用：名称arr可被替换为$arr_ref
+my @arr = qw(a b c);
+my $arr_ref = \@arr;
+
+say $arr[0];        # 或${arr}[0]
+say $$arr_ref[0];   # 或${$arr}[0]
+
+# hash变量名和hash引用：名称hash可被替换为$h_ref
+my %hash = (
+  name => "junma",
+  age => 23,
+);
+my $h_ref = \%hash;
+
+say $hash{name};      # 或${hash}{name};
+say $$h_ref{name};    # 或${$h_ref}{name}
+
+打印出
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+a
+a
+junma
+junma
+```
+## 赋值
+```
+my $name = "junma";
+my $name1 = \$name;
+$name = "junmajinlong";
+say $$name1;   # junmajinlong
+创建了指针name1执行了name，然后name的内容变量，打印$$肯定也变了
+```
+```
+my $name = "junma";
+my $name1 = \$name;
+#name1不再是引用变量，而是字符串变量，此句相当于将name1在堆上内容由原来的地址直接改为了字符串
+$name1 = "junmajinlong";  
+say $name1;   # junmajinlong
+say $name;    # junma
+```
+和一些语法糖
+```
+# 将字面量的引用赋值给变量
+my $name = \"junmajinlong";  
+say $name;
+
+# 声明变量的同时，将其引用赋值给变量
+my $age_ref = \my $age;
+say $age_ref;
+
+# 声明变量的同时赋值，且将其引用赋值给变量
+my $age1_ref = \(my $age1 = 33);
+say $$age1_ref;    # 33
+```
+## 解引用
+根据引用获取其指向的原始数据。
+* 引用的是一个标量，解引用时加上sigil前缀$
+* 引用的是一个数组，解引用时加上sigil前缀@
+* 引用的是一个哈希，解引用时加上sigil前缀%
+
+```
+普通方式
+$name  ->  $$name_ref
+@arr   ->  @$arr_ref
+%hash  ->  %$hash_ref
+
+
+完全限定语法
+${name}  ->  ${$name_ref}
+@{arr}   ->  @{$arr_ref}
+%{hash}  ->  %{$hash_ref}
+```
+对于数组或hash
+```
+取数组或hash的单个元素：
+$arr[0]        ->   $$arr_ref[0]
+${arr}[0]      ->   ${$arr_ref}[0]
+$hash{name}    ->   $$hash_ref{name}
+${hash}{name}  ->   ${$hash_ref}{name}
+
+
+my @name=qw(junma jinlong);
+my $ref_name=\@name;
+say "@{ $ref_name }";
+say "@$ref_name";
+say "$$ref_name[0]";
+say "${$ref_name}[0]";
+```
+也可使用->方式。
+```
+my @names = qw(junma jinlong);
+my $ref_names = \@names;
+say $ref_names->[0];   # 等价于${$ref_names}[0]
+
+my %hash=(
+    name => "junmajinlong",
+    age  => 23,
+);
+my $ref_hash =\%hash;
+say $ref_hash->{name};  # 等价于${$ref_hash}{name}
+```
+当数组中嵌套数组或hash，hash中嵌套数组或hash时，优先使用瘦箭头解引用的方式来取元素，这样整个取值过程更清晰。
+```
+# $ref_Config是一个hash引用，取得其中的urllist值
+# urllist值是一个数组，取得第二个元素，该元素仍为数组，
+# 再取得第四个元素，依然是数组，最后取得第二个元素
+say ${$ref_Config}{urllist}[1][3][1];
+say ${${${$ref_Config}{urllist}[1]}[3]}[1];
+say $ref_Config->{urllist}->[1]->[3]->[1];
+
+并且，连续多个瘦箭头时，从第二个瘦箭头开始可以省略瘦箭头。例如上面最后一种写法可简写为：
+say $ref_Config->{urllist}[1][3][1];
 ```
 # 流程控制
 ## 关于true与false
@@ -436,6 +601,53 @@ for my $i (1..10){
   say $i;
 }
 ```
+## continue
+它可以是一个函数，也可以跟一个代码块。
+```
+continue              # continue函数
+continue BLOCK        # continue代码块
+
+
+如果指定了BLOCK，continue可用于循环结构之后。
+while (EXPR) BLOCK continue BLOCK
+until (EXPR) BLOCK continue BLOCK
+for VAR (LIST) BLOCK continue BLOCK
+foreach VAR (LIST) BLOCK continue BLOCK
+BLOCK continue BLOCK
+
+
+while(){
+    # <- redo会跳到这里
+    CODE
+} continue {
+    # <- next总是跳到这里
+    CODE
+}
+# <- last跳到这里
+
+
+
+my $a=3;
+while($a<8){
+  if($a<5){
+    say '$a in main if block: ',$a;
+    next;
+  }
+} continue {
+  say '$a in continue block: ',$a;
+  $a++;
+}
+
+输出结果：
+
+$a in main if block: 3
+$a in continue block: 3
+$a in main if block: 4
+$a in continue block: 4
+$a in continue block: 5
+$a in continue block: 6
+$a in continue block: 7
+```
 ## 标签 label
 Perl允许为循环结构打标签，为循环结构打标签后，last、next等可以控制循环流程的关键字就可以指定要控制哪个层次的循环结构。
 ```
@@ -468,6 +680,52 @@ start outer
 start inner
 done
 ```
+## 流程控制语句修饰符
+Perl支持单条语句后面加流程控制符。觉得就是语法糖。。。  
+```
+command Operator Cond;
+```
+这样的结构称为流程控制表达式。其中：
+* command部分是要执行的语句或表达式
+* Operator部分支持的操作符有if、unless、while、until和foreach，它们称为流程控制语句修饰符
+* Cond部分是条件判断
+
+整个结果的逻辑是：如果条件判断通过，则根据操作符决定是否要执行command部分。
+
+```
+print "true.\n" if     $m > $n;
+print "true.\n" unless $m > $n;
+print "true.\n" while  $m > $n;
+print "true.\n" until  $m > $n;
+print "$_"      foreach @arr;
+```
+## do语句块
+do语句块像是匿名函数一样，给定一个语句块，直接执行。且和函数一样，do语句块有返回值，它的返回值是最后一个被执行语句的返回值。
+```
+这段与下面的那段作用一样
+my $name=do{
+  if($gender eq "male"){"Junmajinlong"}
+  elsif($gender eq "female") {"Gaoxiaofang"}
+  else {"RenYao"}
+};     # 注意结尾的分号
+
+my $name;
+if($gender eq "male"){
+  $name="Junmajinlong";
+} elsif ($gender eq "female"){
+  $name="Gaoxiaofang";
+} else {
+  $name="RenYao";
+}
+
+--------------------------
+my $a=3;
+do {
+  say "statement1";
+  say "statement2";
+} if $a > 2;
+```
+
 # 常用函数
 ## 取整 int
 截断为整数，如  
@@ -1595,3 +1853,508 @@ say %hash;   # d-dd
 undef %hash;    # 注销hash变量
 say %hash;
 ```
+# 复杂数据结构
+## 创建
+在需要嵌套数组或hash的时候，应当使用它们的引用
+```
+hash的v是数组
+
+my @arr = qw(a b c);
+my %h = ( aa => \@arr, bb => 1);
+my $aa_value = $h{aa};
+
+下面3种结果一样
+say ${$aa_value}[0];
+say $h{aa}->[0];
+say $h{aa}[0];  # 可省略瘦箭头
+
+
+-----------------------
+在将上面的hash放到数组中
+my @arr = qw(a b c);
+my %h = ( aa => \@arr, bb => 1);
+my @outer = ( 'x', 'y', \%h, 'z' );
+
+say $outer[2]->{aa}->[0];
+say $outer[2]->{aa}[0];
+say $outer[2]{aa}[0];
+
+-----------------------
+
+复杂的结构，通过$ref_Config取得@more_urllist中的第二个元素
+
+my @more_urllist=qw(http://mirrors.shu.edu.cn/CPAN/
+  http://mirror.lzu.edu.cn/CPAN/
+);
+my @my_urllist=('http://mirrors.aliyun.com/CPAN/',
+  'https://mirrors.tuna.tsinghua.edu.cn/CPAN/',
+  'https://mirrors.163.com/cpan/',
+  \@more_urllist   # 将数组more_urllist引用作为元素
+);
+my %Config = (
+  'auto_commit' => '0',
+  'build_dir' => '/home/fairy/.cpan/build',
+  'bzip2' => '/bin/bzip2',
+  'urllist' => [
+    'http://cpan.metacpan.org/',
+    \@my_urllist  # 将数组my_urllist作为元素
+  ],
+  'wget' => '/usr/bin/wget',
+);
+
+my $ref_Config=\%Config;
+say ${$ref_Config}{'urllist'}[1][3][1];
+say ${${${$ref_Config}{'urllist'}[1]}[3]}[1];
+say $ref_Config->{urllist}->[1]->[3]->[1];
+say $ref_Config->{urllist}[1][3][1];
+```
+## 打印
+Data::Printer、Data::Dump未安装
+## 匿名数组[ ]、匿名hash{ }
+* 使用中括号[]构建匿名数组，使用大括号{}构建匿名hash
+* 它们都是引用，因此可以解除引用，还原得到原始数据对象。
+* 不包含任何元素的[]和{}算是匿名空数组、匿名空hash
+
+
+1. 匿名数组 [ ]
+```
+#匿名数组、匿名hash都是引用，因此赋值给标量变量
+my $anonymou_array = []; # 空数组
+my $anonymou_hash = {};  # 空hash
+
+#将匿名数组嵌套在其他数组或hash中
+my @name=('fairy', ['longshuai','wugui','xiaofang']);
+my %hash=('longshuai' => ['male',18,'jiangxi'],
+          'wugui'     => ['male',20,'zhejiang'],
+          'xiaofang'  => ['female',19,'fujian'],
+         );
+
+say "$name[1][2]";
+say "$hash{wugui}[1]";
+```
+如果不想在匿名数组中输入引号，可以使用qw()。以下等价
+```
+my @name=('fairy',['longshuai','wugui','xiaofang']);
+my @name=('fairy',[qw(longshuai wugui xiaofang)]);
+```
+2. 匿名hash { }
+```
+my @name=(         # 匿名hash作为数组的元素
+  {    # 第一个匿名hash
+   'name'=>'longshuai', 'age'=>18,
+  },
+  {    # 第二个匿名hash
+   'name'=>'wugui', 'age'=>20,
+  },
+  {    # 第三个匿名hash
+   'name'=>'xiaofang',  'age'=>19,
+  },
+);
+
+my %hash=(         # 匿名hash作为hash的value
+  'longshuai'=>{   # 第一个匿名hash
+                'gender'=>'male', 'age'=>18,
+               },
+  'wugui'=>{       # 第二个匿名hash
+            'gender'=>'male', 'age'=>20,
+           },
+  'xiaofang'=>{    # 第三个匿名hash
+               'gender'=>'female', 'age'=>19,
+              },
+);
+```
+## 解除匿名对象的引用
+```
+my $arr_ref = [qw(a b c)];
+say "@$arr_ref";  # 解除引用得到匿名数组
+```
+除了可以通过解除引用变量的方式来得到匿名数据结构，还可以直接解除匿名数据结构：
+* 解除匿名数组的引用@{[]}
+* 解除匿名hash的引用%{ {} }
+
+之所以可以直接解除匿名数组和匿名hash，是因为构建匿名数组的[]和构建匿名hash的{}本身就返回引用。
+```
+#解除匿名数组的引用，得到数组，再将其内插到双引号
+say "@{ ['longshuai','xiaofang'] }";
+say "@{ [qw(longshuai xiaofang)] }"; 
+#获取匿名对象中的第二个元素
+say "@{ [qw(longshuai xiaofang)] }[1]";
+
+下面的有语法错误，暂未解决
+say %{   # 解除匿名hash
+  { # 构造匿名hash
+    longshuai=> ['male',18,'jiangxi'],
+    wugui    => ['male',20,'zhejiang'],
+    xiaofang => ['female',19,'fujian'],
+  }
+}{longshuai}->[1];
+```
+## 检查引用的类型
+ref函数可用来检查引用的类型，并返回类型。perl中内置了如下几种引用类型，如果检查的不是引用，则返回undef。除了ref函数，Perl模块Scalar::Util提供的reftype函数也用来检测类型，它还适用于对象相关的检测。
+- SCALAR
+- ARRAY
+- HASH
+- CODE
+- REF
+- GLOB
+- LVALUE
+- FORMAT
+- IO
+- VSTRING
+- Regexp
+```
+my @name=qw(longshuai wugui);
+my $ref_name=\@name;
+
+my %myhash=(
+    longshuai => "18012345678",
+    xiaofang  => "17012345678",
+    wugui     => "16012345678",
+    tuner     => "15012345678"
+);
+my $ref_myhash =\%myhash;
+
+say ref $ref_name;     # ARRAY
+say ref $ref_myhash;   # HASH
+
+可以让ref对空hash、空数组等进行检测，然后对比
+my $ref_type = ref $ref_myhash;
+say "expect HASH reference" unless $ref_type eq 'HASH';
+say "expect HASH reference" unless $ref_type eq ref {};
+
+将HASH、ARRAY这样的引用类型名定义为常量：
+use constant HASH => ref {};
+use constant ARRAY => ref [];
+
+say "expect HASH reference" unless $ref_type eq HASH;
+say "expect Array reference" unless $ref_type eq ARRAY;
+```
+
+# 异常处理
+## die、warn
+* Perl自带了die函数，用来报错并退出程序，相当于其他语言中的raise。还自带了warn函数，用法和die类似，它用来发出警告信息，但不会退出。
+* 并非所有的错误都会收集到$ !变量中，只有涉及到系统调用且出错时，才会设置$!
+* die和warn默认会输出程序名称和行号，但如果在错误消息后面加上\n换行符，则不会报告程序名称和行号。
+
+## croak、carp
+Perl自带的die和warn有时候并不友好，它们只会报告代码出错的位置，即哪里使用了die或warn，就报告这个地方有问题。Carp模块提供的croak和carp函数提供了更细致的错误追踪功能，用法分别对应die和warn，区别仅在于它们会展示更具体的错误位置。
+```
+use Carp 'croak';
+sub f{
+  croak "error in f";
+}
+
+f;
+
+
+报告的错误信息：
+error in f at first_perl.pl line 73.
+        main::f() called at first_perl.pl line 76
+```
+## eval错误处理
+使用die或Carp的croak，都将报错退出程序，如果不想退出程序，可以使用eval来处理错误：当eval指定的代码出错时，它将返回undef而不是退出。eval有两种用法: 
+* 字符串作为参数
+* 语句块作为参数
+```
+eval 'say "hello world"';
+eval {say "hello world"};
+```
+
+无论是字符串参数还是语句块参数，参数部分都会被当作代码执行一次。
+* 如果eval参数部分执行时没有产生错误，则eval的返回值是最后一条被执行语句的计算结果，并且特殊变量$@为空。
+* 如果eval参数部分执行时产生了错误，则eval的返回值为undef或空列表，同时将错误信息设置到$@中。
+* 之所以将 $ @ 保存起来，是因为handle_error可能也有eval，这时handle_error的eval将覆盖之前的$@。
+```
+my $res;
+my $ok = eval { $res = some_func(); 1};
+if ($ok){
+  ...代码正确...
+} else {
+  ...eval代码出错...
+  my $err = $@;
+  ...
+}
+```
+# 正则
+Perl中正则表达式的书写方式为<font color=#FF0000 size=10>m/reg/</font>，其中斜线可以替换为其它符号。规则如下：
+* 双斜线可以替换为任意其它成对符号，例如可以是对称的各种括号m(reg) m{reg}，也可以是相同的* 字符m!! m%%
+* 当采用双斜线时，可省略前缀m字母，即/reg/等价于m/reg/
+* 如果正则表达式中出现了和分隔符相同的字符，需转义表达式中的符号，但建议换分隔符，例* 如/http:\/\//转换成m%http://%
+* Perl中除了可以将正则写为m/reg/或省略m的/reg/，还可以通过qr来构建正则表达式。qr和q、qq、qw类似，只不过它构建的是正则表达式的字面量。如
+```
+qr/abc.*def/
+qr(abc.*def)
+qr{ab.*def}
+```
+
+"abc123def" =~ /\d+/;  
+其中=~是正则匹配操作符，左边是待匹配的字符串数据，右边是双斜线包围的正则表达式。更好的方式是将正则表达式部分以单引号的方式定义为变量，然后在正则表达式中内插该变量：
+```
+my $re_str = q%abc$\ndef%;
+$str =~ /${re_str}/m;
+```
+
+## 匹配返回值
+
+正则匹配的返回值情况比较复杂，具体可参考perldoc perlop。大致可总结为：
+1. 在标量上下文中，正则匹配总是在匹配成功时返回1表示布尔真，匹配失败时返回undef
+	```
+	# 在标量上下文，正则匹配可直接作为判断条件
+	my $str = "abAB12cdCD34";
+	say "matched" if($str =~ /\d+/);
+	say "not matched" if($str =~ /xy/);
+	```
+2. 在列表上下文中：
+   - 匹配失败时，总是返回空列表，表示布尔假
+		```
+		# 在列表上下文，匹配失败时，返回空列表
+		my @arr = $str =~ /xy/;
+		say ~~@arr;    # 0
+		```
+   - 匹配成功时，如果使用了小括号分组捕获，则返回本次匹配各分组捕获的内容列表
+		```
+		# 在列表上下文，匹配成功，且使用小括号分组捕获时，返回各分组内容
+		my @arr = $str=~/(\d+)/;
+		say "@arr";   # 12
+		@arr = $str=~/(\d+)[^0-9]+(\d+)/;
+		say "@arr";   # 12 34
+		```
+   - 匹配成功时，如果未使用小括号分组捕获，则在未使用g修饰符时返回列表(1)，在使用了g修饰符时返回全局匹配成功的内容列表
+		```
+		# 在列表上下文，匹配成功，且未使用小括号分组捕获时，
+		# 如果未使用g修饰符全局匹配，则返回列表`(1)`
+		# 如果使用g修饰符全局匹配，则返回全局匹配成功的内容列表
+		my @arr1 = $str=~/\d+/;
+		say "@arr1";   # 1
+		my @arr2 = $str=~/\d+/g;
+		say "@arr2";   # 12 34
+		```
+## 特殊变量
+下面是正则表达式相关的特殊变量总结
+```
+$1 $2 $3...
+保存了各个分组捕获的内容
+
+$& 或 $MATCH
+保存了本次匹配到的内容
+
+$` 或 $PREMATCH
+保存了本次匹配起始位置之前的内容
+
+$' 或 $POSTMATCH
+保存了本次匹配结束位置之后的内容
+
+演示：
+my $str = "abAB12cdCD34";
+say "$`： $& ： $'" if($str =~ /\d+/);		abAB： 12 ： cdCD34
+```
+
+这些特殊变量是只读的，每次正则匹配时Perl会自动重置这些变量。这些变量只在当前作用域内有效，并且只在本次正则匹配后、下次正则匹配前有效。如下面的第二次say就失败了
+```
+my $str = "abbc123";
+$str=~/a(.*)c/;
+say $1;
+$str=~/a.*c/;
+say $1;   # undef
+```
+还有几个比较常用的特殊变量是：
+```
+$+ 或 $LAST_PAREN_MATCH
+最后一个匹配成功的分组括号所匹配的内容(PAREN是括号parentheses的缩写)
+
+%+ 或 %LAST_PAREN_MATCH
+保存本次匹配过程中所有命名分组捕获的内容，hash的key是分组名称，value是分组捕获的内容
+
+@- 或 @LAST_MATCH_START
+保存了各个分组匹配的起始位置
+
+@+ 或 @LAST_MATCH_END
+保存了各个分组匹配的结束位置
+
+
+@- @+这两个变量结合substr用起来可以非常强大，通过它们可以构造出和$` $& $'等价的值，且能构造出更多匹配结果。例如：
+$` == substr($var, 0, $-[0])
+$& == substr($var, $-[0], $+[0] - $-[0])
+$' == substr($var, $+[0])
+$1 == substr($var, $-[1], $+[1] - $-[1])
+$2 == substr($var, $-[2], $+[2] - $-[2])
+$3 == substr($var, $-[3], $+[3] - $-[3])
+```
+## 忽略大小写 i
+```
+my $name="aAbBcC";
+if($name =~ m/ab/i){
+    print "pre match: $` \n";     # 输出a
+    print "match: $& \n";         # 输出Ab
+    print "post match: $' \n";    # 输出BcC
+}
+```
+
+## 允许.可以匹配\n s
+默认情况下元字符.不能匹配换行符\n，开启了s修饰符功能后，可以让.匹配换行符。案例见多行匹配模式
+
+## 多行匹配模式 m
+```
+my $txt="ab\ncd";
+
+下面3句都可以匹配。关于多行匹配，需要注意的是元字符.默认情况下无法匹配换行符。可以使用[\d\D]代替点，也可以开启s修饰符使.能匹配换行符。
+$txt =~ /a.*\nc/m;
+$txt =~ /a.*c/ms;
+$txt =~ /a[\d\D]*c/m;
+
+say "===match start==="
+say $&;
+say "===match end===";
+
+执行，将输出：
+
+===match start===
+ab
+c
+===match end===
+```
+## 分隔正则 x
+Perl正则允许分隔表达式，甚至支持注释，只需加上x修饰符即可。这时候正则表达式中出现的所有空白符号都不会当作正则的匹配对象，而是直接被忽略。如果想要匹配空白符号，可以使用\s表示，或者将空格使用“\Q \E”包围。以下4个匹配操作是完全等价的。对于稍微复杂一些的正则表达式，常常都会使用x修饰符来增强其可读性，最重要的是加上注释。
+```
+my $ans="cat sheep tiger";
+$ans =~ /(\w) *(\w) *(\w)/;       # 正常情况下的匹配表达式
+$ans =~ /(\w)\s*   (\w)\s*   (\w)/x;
+$ans = ~ /
+        (\w)\s*      # 本行是注释：匹配第一个单词
+        (\w)\s*      # 本行是注释：匹配第二个单词
+        (\w)         # 本行是注释：匹配第三个单词
+        /x;
+$ans =~ /
+         (\w)\Q \E   # \Q \E强制将中间的空格当作字面符号被匹配
+         (\w)\Q \E
+         (\w)
+        /x;
+```
+## 只编译一次 o
+## 范围模式匹配修饰符(?imsx-imsx:pattern)
+用于指定匹配时在不同位置使用不同的选项。对于待匹配字符串"Hello world junmajinlong"，使用以下几种模式去匹配的话：
+* /(?i:hello) world/  
+    表示匹配hello时，可忽略大小写，但匹配world时仍然区分大小写。所以匹配成功
+* /(?ims:hello.)world/  
+    表示可以跨行匹配helloworld，也可以匹配单行的hellosworld，且hello部分忽略大小写。所以匹配成功
+* /(?i:hello (?-i:world) junmajinLONG)/  
+    表示在第二个括号之前，可忽略大小写进行匹配，但第二个括号里指明了去除i的影响，所以对world的匹配会区分大小写，但是对junmajinlong部分的匹配又不区分大小写。所以匹配成功
+* /(?i:hello (?-i:world) junmajin)LONG/  
+	和前面的类似，但是将LONG放到了括号外，意味着这部分要区分大小写。所以匹配失败
+
+## 全局匹配 g
+全局匹配时，默认情况下，如果当前字符匹配失败，将会后移继续去匹配，直到匹配成功或匹配结束。
+```
+my @arr = "abcabc" =~ /ab/g;  # 匹配返回qw(ab ab)
+say "@arr";  # ab ab
+
+
+使用循环匹配的方式来验证全局匹配中的每次匹配结果：
+my $name="aAbBcCaBc";
+while($name =~ m/ab/gi){
+  say "pre match : $`";
+  say "match     : $&";
+  say "post match: $'";
+}
+
+执行它，将输出如下内容：
+
+pre match : a
+match     : Ab
+post match: BcCaBc
+pre match : aAbBcC
+match     : aB
+post match: c
+
+-------------------------------------
+my $txt="1234ab56";
+$txt =~ /\d\d/g;
+say "matched $&: ",pos $txt;
+$txt =~ /\d\d/g;
+say "matched $&: ",pos $txt;
+$txt =~ /\d/g;   # 字母a匹配失败，后移一位，字母b匹配失败，后移一位，数值5匹配成功
+say "matched $&: ",pos $txt;
+$txt =~ /\d/g;   # 数值6匹配成功
+say "matched $&: ",pos $txt;
+
+执行上述程序，将输出：
+
+matched 12: 2
+matched 34: 4
+matched 5: 7
+matched 6: 8
+```
+## 匹配后的index pos
+在开启了g全局匹配后，perl会在每次匹配成功后记下匹配的偏移位置，以便下次匹配时可以从该位移处继续向后匹配。每次匹配成功后的位移值，都可以通过pos()函数获取。偏移值从0开始算，0位移代表的是第一个字符左边的位置。如果本次匹配导致位移指针重置，pos将返回undef。
+
+```
+my $name="123ab456";
+$name =~ m/\d\d/g;     # 第一次匹配，匹配成功后记下位移
+say "matched: $&, pos: ",pos $name;
+$name =~ m/\d\d/g;     # 第二次匹配，匹配成功后记下位移
+say "matched: $&, pos: ",pos $name;
+
+执行它，将输出如下内容：
+
+matched: 12, pos: 2
+matched: 45, pos: 7
+
+匹配失败的时候，正则匹配操作会返回假，所以可以作为if或while等的条件语句来终止全局匹配。例如：
+
+my $name="123ab456";
+while($name =~ m/\d\d/g){
+  say "matched: $&, pos: ",pos $name;
+}
+```
+
+## 匹配失败重置index到0 c
+默认全局匹配情况下，当本次匹配失败，指针将重置到起始位置0处，也就是说，下次匹配将从头开始匹配
+```
+my $txt="1234a56";
+$txt =~ /\d\d/g;      # 匹配成功：12，位移向后移两位
+say "matched $&: ",pos $txt;
+$txt =~ /\d\d/g;      # 匹配成功：34，位移向后移两位
+say "matched $&: ",pos $txt;
+$txt =~ /\d\d\d/g;    # 匹配失败，位移指针回到0处，pos()返回undef
+say "matched $&: ",pos $txt;
+$txt =~ /\d/g;        # 匹配成功：1，位移向后移1位
+say "matched $&: ",pos $txt;
+
+执行上述程序，将输出：
+
+matched 12: 2
+matched 34: 4
+matched 34:   #<-- warning: use undef value
+matched 1: 1
+```
+如果g修饰符下同时使用c修饰符，也就是gc，它表示全局匹配失败的时候不重置位移指针。也就是说，本次匹配失败后，位移指针会卡在原处不动，下次匹配将从这个位置处开始匹配。
+```
+my $txt="1234a56";
+$txt =~ /\d\d/g;
+say "matched $&: ",pos $txt;
+$txt =~ /\d\d/g;
+say "matched $&: ",pos $txt;
+$txt =~ /\d\d\d/gc;   # 匹配失败，$&和pos()保留上一次匹配成功的内容
+say "matched $&: ",pos $txt;
+$txt =~ /\d/g;        # 匹配成功：5
+say "matched $&: ",pos $txt;
+$txt =~ /\d/g;        # 匹配成功：6
+say "matched $&: ",pos $txt;
+$txt =~ /\d/gc;        # 匹配失败
+say "matched $&: ",pos $txt;
+
+执行上述程序，将输出：
+
+matched 12: 2
+matched 34: 4
+matched 34: 4
+matched 5: 6
+matched 6: 7
+matched 6: 7
+```
+## \G
+待补充
+# 类似sed s///
+$str =~ s/PATTERN/Replacement/FLAGS;
+
+表示用指定的正则表达式PATTERN去搜索$str中的内容，并将搜索出来的内容替换为Replacement。FLAGS指定s替换时的行为。
