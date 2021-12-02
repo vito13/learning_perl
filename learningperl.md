@@ -2358,3 +2358,175 @@ matched 6: 7
 $str =~ s/PATTERN/Replacement/FLAGS;
 
 表示用指定的正则表达式PATTERN去搜索$str中的内容，并将搜索出来的内容替换为Replacement。FLAGS指定s替换时的行为。
+
+
+# 函数
+
+## 简单定义与调用
+```
+# 定义子程序
+sub roll{
+  print 1 + int(rand(6));
+}
+
+# 不同调用方式
+roll;		其次
+roll();		首选
+&roll;
+&roll();
+```
+## 关于return
+其实Perl子程序总是有返回值，可以使用return关键字(return实际上也是一个内置函数)设置子程序的返回值
+
+* 有return且带参数：return的参数(即要指定的返回值)是一个列表上下文
+	```
+	# 返回单个值
+	return 1
+	return 0
+	return ""
+
+	# 返回多值组成的列表
+	return 1,2,3;
+	return (1,2,3);
+
+	return无法直接返回数组和hash，因为它们会先转换成列表，再以列表的方式返回。如果确实要返回数组或列表，应当返回它们的引用。
+	return $array_ref;
+	return $hash_ref;
+
+	也可以返回匿名数组或匿名hash
+	return [qw(a b c)];   # 返回匿名数组
+	return {(name=>"junmajinlong", age=>23,)};   # 返回匿名hash
+	```
+* 有return无参数：
+	- 列表上下文，返回空列表
+	- 标量上下文，返回未定义值(可当作undef或0或空字	- 串使用)
+	- 空上下文，不返回任何数据，只用于终止子程序
+* 无return：以最后被执行的语句计算结果作为返回值
+	```
+	下面是两个等价的子程序定义方式：
+	sub roll{
+		1+int(rand(6));
+	}
+
+	sub roll(){
+		return 1+int(rand(6));
+	}
+
+	最后一条被执行的语句是print语句，print函数的返回值为1，因此roll()的返回值为1。
+	sub roll{
+		print 123;
+	}
+	say roll();  # 打印1231，其中123是函数内的打印。最后的1是print的运行结果
+	```
+	
+## wantarray
+## 函数参数
+类似shell，函数定义无需形参
+```
+所有实参会依次放入名为@_的数组中，但@_和$_差异在哪呢
+
+sub area{
+ say @_[0];		# 2
+ say @_[1];		# 5
+ say @_;		# 25
+ say $_[0];		# 2
+ say $_[1];		# 5
+ say $_;		# 空
+ return;
+}
+area(2, 5);
+```
+使用shift来弹出参数列表中的第一个，shell里也有类似功能
+```
+在子程序内部，下面两个操作是等价的：
+shift @_;
+shift;
+```
+
+也可以将传递的参数组合成hash：
+```
+sub subname {
+  my %hash = @_;
+  say keys %hash;
+  say values %hash;
+}
+
+subname(
+  "name", "junmajinlong",
+  "age", 23,
+);
+```
+传递数组或hash，建议的方式是传递它们的引用。也可以传递匿名数组、匿名hash，它们本质上仍然是引用。
+```
+sub subname{
+  my $arr_ref = shift;
+  say $$arr_ref[0];
+}
+
+my @arr = qw(a b c);
+subname(\@arr);
+
+----------------------------------
+sub subname{
+  my $arr_ref = shift;
+  my $hash_ref = shift;
+  my $scalar = shift;
+  
+  say $$arr_ref[0];
+  say $$hash_ref{name};
+  say $scalar;
+}
+
+subname([qw(a b c)], {name=>'junma', age=>23}, 3333);
+```
+调用子程序时传递的参数，放入@_中的都是原始数据的别名引用：修改@_各元素的值，也将影响原始数据。即里面改了外面也变了
+```
+@_中的数据和原始数据是完全相同的，它们是别名关系。这种别名关系也存在于容器的元素中。
+
+sub subname{
+  $_[0]++;
+  say $_[0];
+}
+
+my $a=33;
+subname($a);
+say $a;
+
+
+sub subname{
+  $_[0]++;
+  say $_[0];
+}
+
+my @arr = (11,22,33);
+subname(@arr);
+say $arr[0];
+
+```
+如果想要让子程序内部的修改不影响原始数据，则应该将参数数据保存到变量中。
+```
+sub subname{
+  my $a = shift;
+  $a++;
+  say $a;
+}
+
+my $x=33;
+subname $x;  # 34
+say $x;      # 33
+
+数组也类似：
+
+sub subname{
+  my @arr = @_;
+  $arr[0]++;
+  say $arr[0];
+}
+
+my @arr=(11,22,33);
+subname @arr;  # 12
+say $arr[0];   # 11
+```
+## 检测原型
+## 函数的引用
+## state变量
