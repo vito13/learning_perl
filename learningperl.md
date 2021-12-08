@@ -449,11 +449,30 @@ abc15
 abc8
 
 ```
+## 读取标准输入
+```
+使用一对尖括号格式的<STDIN>来读取来自非文件的标准输入，例如来自管道的数据，来自输入重定向的数据或者来自键盘的输入，<STDIN>读取的输入会自带换行符，所以print输出的时候不要加上额外的换行符。如需去除行尾的换行，使用chomp
+
+脚本内容：
+my $data=<STDIN>;
+say "$data";
+下面是循环的样式
+foreach (<STDIN>){
+    say "$_";
+}
+
+[huawei@n148 perl]$ echo "aaa\nbbb"|perl 1.pl 
+aaa\nbbb
+
+[huawei@n148 perl]$ 
+```
 # 引用
 引用就是指针，Perl 引用是一个标量类型可以指向变量、数组、哈希表甚至子程序，可以应用在程序的任何地方。
 ## 创建引用
-在变量的sigil符号前加上反斜线即表示该变量的引用。通过引用查看变量所保存数据的内存地址
 ```
+在一个变量前加一个'\'号，你就得到了这个变量的'引用'。通过引用查看变量所保存数据的内存地址
+
+
 my $name = "junmajinlong";
 say \$name;    # SCALAR(0x55f80476d588)
 ```
@@ -2553,16 +2572,21 @@ if ($ok){
 ```
 # 正则
 Perl的正则表达式的三种形式，分别是匹配，替换和转化:
-* 匹配：m//（还可以简写为//，略去m）
+* 匹配：m//
 * 替换：s///
 * 转化：tr///
   
 这三种形式一般都和 =~ 或 !~ 搭配使用， =~ 表示相匹配，!~ 表示不匹配。
 
 ## 匹配操作
-匹配操作符 m// 用于匹配一个字符串语句或者一个正则表达式
+匹配操作符 m// 用于匹配一个字符串语句或者一个正则表达式。换掉斜线也行 m()，m{}，m!!，m%%，只有使用斜线才可省略m
+
+* 使用data =~ m/reg/，可以明确指定要对data对应的内容进行正则匹配
+* 直接/reg/，因为省略了参数，所以使用默认参数变量，它等价于 $_ =~ m/reg/，也就是对 $_保存的内容进行正则匹配
+* 返回真假
+
+### 匹配给定字符串内容
 ```
- 
 $bar = "I am runoob site. welcome to runoob site.";
 if ($bar =~ /run/){
    print "第一次匹配\n";
@@ -2582,7 +2606,29 @@ if ($bar =~ /run/){
 第一次匹配
 第二次匹配
 ```
+### 匹配来自管道的内容
+```
+foreach (<STDIN>){
+        chomp;
+        if (/gao/){
+            print "$_ was matched 'gao'\n";
+        }
+    }
 
+[huawei@n148 perl]$ echo -e "malongshuai gaoxiaofang" | perl 1.pl 
+malongshuai gaoxiaofang was matched 'gao'
+```
+### 匹配来自文件的内容
+```
+foreach (<>){
+    chomp;
+    if (/gao/){
+        print "$_ was matched 'gao'\n";
+    }
+}
+[huawei@n148 perl]$ perl 1.pl err.txt
+malongshuai gaoxiaofang was matched 'gao'
+```
 模式匹配有一些常用的修饰符，如下表所示：
 ```
 修饰符	描述
@@ -2595,7 +2641,7 @@ g	全局匹配
 cg	全局匹配失败后，允许再次查找匹配串
 ```
 
-## 正则表达式变量
+## 正则特殊变量变量
 下面是正则表达式相关的特殊变量总结
 ```
 $1 $2 $3...
@@ -2697,7 +2743,19 @@ c	转化所有未指定字符
 d	删除所有指定字符
 s	把多个相同的输出字符缩成一个
 ```
-## 部分修饰符
+## 模式匹配修饰符
+perl总共支持以下几种修饰符，这些修饰符可以连用，连用时顺序可随意
+* i：匹配时忽略大小写
+* g：全局匹配，默认情况下，正则表达式"abc"匹配"abcdabc"字符串的时候，将之匹* 配左边的abc，使用g将匹配两个"abc"
+* c：在开启g的情况下，如果匹配失败，将不重置搜索位置
+* m：多行匹配模式
+* s：让.可以匹配换行符"\n"，也就是说该修饰符让.真的可以匹配任意字符
+* x：允许正则表达式使用空白符号，免得让整个表达式难读难懂，但这样会让原本的空* 白符号失去意义，这是可以使用\s来表示空白
+* o：只编译一次正则表达式
+* n：非捕获模式
+* p：保存匹配的字符串到 $ {^PREMATCH}、$ {^MATCH}、$ {^POSTMATCH}中，它们在结果* 上对应$`、$& 和 $'，但性能上要更好
+* a和u和l：分别表示用ASCII、Unicode和Locale的方式来解释正则表达式，一般不用* 考虑这几个修饰符
+* d：使用unicode或原生字符集，就像5.12和之前那样，也不用考虑这个修饰符
 ### 忽略大小写 i
 ```
 my $name="aAbBcC";
@@ -2707,62 +2765,8 @@ if($name =~ m/ab/i){
     print "post match: $' \n";    # 输出BcC
 }
 ```
-
-### 单行模式 s
-允许.可以匹配\n  
-默认情况下元字符.不能匹配换行符\n，开启了s修饰符功能后，可以让.匹配换行符。案例见多行匹配模式
-
-### 多行模式 m
-```
-my $txt="ab\ncd";
-
-下面3句都可以匹配。关于多行匹配，需要注意的是元字符.默认情况下无法匹配换行符。可以使用[\d\D]代替点，也可以开启s修饰符使.能匹配换行符。
-$txt =~ /a.*\nc/m;
-$txt =~ /a.*c/ms;
-$txt =~ /a[\d\D]*c/m;
-
-say "===match start==="
-say $&;
-say "===match end===";
-
-执行，将输出：
-
-===match start===
-ab
-c
-===match end===
-```
-### 忽略空白 x
-Perl正则允许分隔表达式，甚至支持注释，只需加上x修饰符即可。这时候正则表达式中出现的所有空白符号都不会当作正则的匹配对象，而是直接被忽略。如果想要匹配空白符号，可以使用\s表示，或者将空格使用“\Q \E”包围。以下4个匹配操作是完全等价的。对于稍微复杂一些的正则表达式，常常都会使用x修饰符来增强其可读性，最重要的是加上注释。
-```
-my $ans="cat sheep tiger";
-$ans =~ /(\w) *(\w) *(\w)/;       # 正常情况下的匹配表达式
-$ans =~ /(\w)\s*   (\w)\s*   (\w)/x;
-$ans = ~ /
-        (\w)\s*      # 本行是注释：匹配第一个单词
-        (\w)\s*      # 本行是注释：匹配第二个单词
-        (\w)         # 本行是注释：匹配第三个单词
-        /x;
-$ans =~ /
-         (\w)\Q \E   # \Q \E强制将中间的空格当作字面符号被匹配
-         (\w)\Q \E
-         (\w)
-        /x;
-```
-###	仅赋值一次 o
-### 范围模式匹配修饰符(?imsx-imsx:pattern)
-用于指定匹配时在不同位置使用不同的选项。对于待匹配字符串"Hello world junmajinlong"，使用以下几种模式去匹配的话：
-* /(?i:hello) world/  
-    表示匹配hello时，可忽略大小写，但匹配world时仍然区分大小写。所以匹配成功
-* /(?ims:hello.)world/  
-    表示可以跨行匹配helloworld，也可以匹配单行的hellosworld，且hello部分忽略大小写。所以匹配成功
-* /(?i:hello (?-i:world) junmajinLONG)/  
-    表示在第二个括号之前，可忽略大小写进行匹配，但第二个括号里指明了去除i的影响，所以对world的匹配会区分大小写，但是对junmajinlong部分的匹配又不区分大小写。所以匹配成功
-* /(?i:hello (?-i:world) junmajin)LONG/  
-	和前面的类似，但是将LONG放到了括号外，意味着这部分要区分大小写。所以匹配失败
-
 ### 全局匹配 g
-全局匹配时，默认情况下，如果当前字符匹配失败，将会后移继续去匹配，直到匹配成功或匹配结束。
+全局匹配情况下，匹配时是可以跳过匹配失败的字符继续匹配的，当某个字符匹配失败，它会后移一位继续去匹配，直到匹配成功或匹配结束。
 ```
 my @arr = "abcabc" =~ /ab/g;  # 匹配返回qw(ab ab)
 say "@arr";  # ab ab
@@ -2786,6 +2790,8 @@ match     : aB
 post match: c
 
 -------------------------------------
+
+
 my $txt="1234ab56";
 $txt =~ /\d\d/g;
 say "matched $&: ",pos $txt;
@@ -2803,41 +2809,50 @@ matched 34: 4
 matched 5: 7
 matched 6: 8
 ```
-### 匹配后的index pos
+### 匹配成功位移值 pos
 在开启了g全局匹配后，perl会在每次匹配成功后记下匹配的偏移位置，以便下次匹配时可以从该位移处继续向后匹配。每次匹配成功后的位移值，都可以通过pos()函数获取。偏移值从0开始算，0位移代表的是第一个字符左边的位置。如果本次匹配导致位移指针重置，pos将返回undef。
 
 ```
-my $name="123ab456";
-$name =~ m/\d\d/g;     # 第一次匹配，匹配成功后记下位移
-say "matched: $&, pos: ",pos $name;
-$name =~ m/\d\d/g;     # 第二次匹配，匹配成功后记下位移
-say "matched: $&, pos: ",pos $name;
+my $txt="1234a56";
+$txt =~ /\d\d/g;      # 匹配成功：12，位移向后移两位
+print "matched $&: ",pos $txt,"\n";
+$txt =~ /\d\d/g;      # 匹配成功：34，位移向后移两位
+print "matched $&: ",pos $txt,"\n";
+$txt =~ /\d\d\d/g;      # 匹配失败，位移指针回到0处，pos()返回undef
+print "matched $&: ",pos $txt,"\n";
+$txt =~ /\d/g;          # 匹配成功：1，位移向后移1位
+print "matched $&: ",pos $txt,"\n";
 
-执行它，将输出如下内容：
-
-matched: 12, pos: 2
-matched: 45, pos: 7
-
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+matched 12: 2
+matched 34: 4
+matched 34: 
+matched 1: 1
+```
 匹配失败的时候，正则匹配操作会返回假，所以可以作为if或while等的条件语句来终止全局匹配。例如：
-
+```
 my $name="123ab456";
 while($name =~ m/\d\d/g){
-  say "matched: $&, pos: ",pos $name;
+    print "matched string: $&, position: ",pos $name,"\n";
 }
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+matched string: 12, position: 2
+matched string: 45, position: 7
+
 ```
 
-### 全局匹配失败允许再次查找 gc
+### 全局匹配失败不重置位移 gc
 默认全局匹配情况下，当本次匹配失败，指针将重置到起始位置0处，也就是说，下次匹配将从头开始匹配
 ```
 my $txt="1234a56";
 $txt =~ /\d\d/g;      # 匹配成功：12，位移向后移两位
-say "matched $&: ",pos $txt;
+print "matched $&: ",pos $txt,"\n";
 $txt =~ /\d\d/g;      # 匹配成功：34，位移向后移两位
-say "matched $&: ",pos $txt;
-$txt =~ /\d\d\d/g;    # 匹配失败，位移指针回到0处，pos()返回undef
-say "matched $&: ",pos $txt;
-$txt =~ /\d/g;        # 匹配成功：1，位移向后移1位
-say "matched $&: ",pos $txt;
+print "matched $&: ",pos $txt,"\n";
+$txt =~ /\d\d\d/g;      # 匹配失败，位移指针回到0处，pos()返回undef
+print "matched $&: ",pos $txt,"\n";
+$txt =~ /\d/g;          # 匹配成功：1，位移向后移1位
+print "matched $&: ",pos $txt,"\n";
 
 执行上述程序，将输出：
 
@@ -2846,21 +2861,23 @@ matched 34: 4
 matched 34:   #<-- warning: use undef value
 matched 1: 1
 ```
-如果g修饰符下同时使用c修饰符，也就是gc，它表示全局匹配失败的时候不重置位移指针。也就是说，本次匹配失败后，位移指针会卡在原处不动，下次匹配将从这个位置处开始匹配。
+如果"g"修饰符下同时使用"c"修饰符，也就是"gc"，它表示全局匹配失败的时候不重置位移指针。也就是说，本次匹配失败后，位移指针会向后移一位，下次匹配将从后移的这个位置处开始匹配。当位移移到了结尾，将无法再移动，此时位移指针将一直指向最后一个位置。
 ```
+观察第三次与最后一次匹配的参数gc
+
 my $txt="1234a56";
 $txt =~ /\d\d/g;
-say "matched $&: ",pos $txt;
+print "matched $&: ",pos $txt,"\n";
 $txt =~ /\d\d/g;
-say "matched $&: ",pos $txt;
-$txt =~ /\d\d\d/gc;   # 匹配失败，$&和pos()保留上一次匹配成功的内容
-say "matched $&: ",pos $txt;
-$txt =~ /\d/g;        # 匹配成功：5
-say "matched $&: ",pos $txt;
-$txt =~ /\d/g;        # 匹配成功：6
-say "matched $&: ",pos $txt;
-$txt =~ /\d/gc;        # 匹配失败
-say "matched $&: ",pos $txt;
+print "matched $&: ",pos $txt,"\n";
+$txt =~ /\d\d\d/gc;   # 匹配失败，位移向后移1位，$&和pos()保留上一次匹配成功的内容
+print "matched $&: ",pos $txt,"\n";
+$txt =~ /\d/g;        # 匹配成功：5，位移向后移1位
+print "matched $&: ",pos $txt,"\n";
+$txt =~ /\d/g;        # 匹配成功：6，位移向后移1位
+print "matched $&: ",pos $txt,"\n";
+$txt =~ /\d/gc;        # 匹配失败：位移无法再后移，将一直指向最后一个位置
+print "matched $&: ",pos $txt,"\n";
 
 执行上述程序，将输出：
 
@@ -2871,7 +2888,214 @@ matched 5: 6
 matched 6: 7
 matched 6: 7
 ```
+### 与gc配合的 \G
+先回顾一下全局匹配情况下，匹配时是可以跳过匹配失败的字符继续匹配的：当某个字符匹配失败，它会后移一位继续去匹配，直到匹配成功或匹配结束。
+```
+my $txt="1234ab56";
+$txt =~ /\d\d/g;
+print "matched $&: ",pos $txt,"\n";
+$txt =~ /\d\d/g;
+print "matched $&: ",pos $txt,"\n";
+$txt =~ /\d/g;       # 字母a匹配失败，后移一位，字母b匹配失败，后移位，数值5匹配成功
+print "matched $&: ",pos $txt,"\n";
+$txt =~ /\d/g;       # 数值6匹配成功
+print "matched $&: ",pos $txt,"\n";
 
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+matched 12: 2
+matched 34: 4
+matched 5: 7
+matched 6: 8
+```
+
+接下来看\G的功能：
+* 加\G使得本次匹配强制从位移处进行匹配，不允许跳过任何匹配失败的字符。
+* 如果本次\G全局匹配成功，位移指针自然会后移
+* 如果本次\G全局匹配失败，且没有加上c修饰符，那么位移指针将重置
+* 如果本次\G全局匹配失败，且加上了c修饰符，那么位移指针将卡在那不动
+
+```
+my $txt="1234ab56";
+$txt =~ /\d\d/g;
+print "matched $&: ",pos $txt,"\n";
+$txt =~ /\d\d/g;
+print "matched $&: ",pos $txt,"\n";
+$txt =~ /\G\d/g;     # 强制从位移4开始匹配，无法匹配字母a，但又不允许跳过
+                     # 所以本次\G全局匹配失败，由于没有修饰符c，指针重置
+print "matched $&: ",pos $txt,"\n";
+$txt =~ /\G\d/g;     # 指针回到0，强制从0处开始匹配，数值1能匹配成功
+print "matched $&: ",pos $txt,"\n";
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+matched 12: 2
+matched 34: 4
+matched 34: 
+matched 1: 1
+```
+如果将上面第三个匹配语句加上修饰符c，甚至后面的语句也都加上\G和c修饰符，那么位移指针将卡在那个位置：
+```
+my $txt="1234ab56";
+$txt =~ /\d\d/g;
+print "matched $&: ",pos $txt,"\n";
+$txt =~ /\d\d/g;
+print "matched $&: ",pos $txt,"\n";
+$txt =~ /\G\d/gc;        # 匹配失败，指针卡在原地
+print "matched $&: ",pos $txt,"\n";
+$txt =~ /\G\d/gc;        # 匹配失败，指针继续卡在原地
+print "matched $&: ",pos $txt,"\n";
+$txt =~ /\G\d/gc;        # 匹配失败，指针继续卡在原地
+print "matched $&: ",pos $txt,"\n";
+
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+matched 12: 2
+matched 34: 4
+matched 34: 4
+matched 34: 4
+matched 34: 4
+```
+通常全局匹配都会用循环去多次迭代，先看下带与不带\G的差异
+```
+加了\G当匹配失败时候会退出循环
+
+my $txt="1234ab56";
+while($txt =~ m/\G\d\d/gc){
+    print "matched: $&, ",pos $txt,"\n";
+}
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+matched: 12, 2
+matched: 34, 4
+----------------------------------
+没有\G可以全匹配出来
+
+my $txt="1234ab56";
+while($txt =~ m/\d\d/gc){
+    print "matched: $&, ",pos $txt,"\n";
+}
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+matched: 12, 2
+matched: 34, 4
+matched: 56, 8
+```
+上面使用c与否是无关紧要的，但如果这个while循环的后面后还需要继续进行匹配的话那c修饰符就有用了。
+```
+my $txt="1234ab56";
+while($txt =~ m/\G\d\d/gc){   # 使用c修饰符
+    print "matched: $&, ",pos $txt,"\n";
+}
+$txt =~ m/\G\d\d/gc;
+print "matched: $&, ",pos $txt,"\n";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+matched: 12, 2
+matched: 34, 4
+matched: , 4
+
+---------------------------
+my $txt="1234ab56";
+while($txt =~ m/\G\d\d/g){   # 不使用c修饰符
+    print "matched: $&, ",pos $txt,"\n";
+}
+$txt =~ m/\G\d\d/gc;
+print "matched: $&, ",pos $txt,"\n";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+matched: 12, 2
+matched: 34, 4
+matched: 12, 2
+```
+
+### 多行模式 m
+正则表达式一般都只用来匹配单行数据，但有时候却需要一次性匹配多行。比如匹配跨行单词、匹配跨行词组，匹配跨行的对称分隔符(如一对括号)。
+```
+my $txt="ab\ncd";
+
+下面3句都可以匹配。关于多行匹配，需要注意的是"."默认情况下无法匹配换行符。可以使用[\d\D]代替点，也可以开启s修饰符使"."能匹配换行符。
+
+$txt =~ /a.*\nc/m;
+$txt =~ /a.*c/ms;
+$txt =~ /a[\d\D]*c/m;
+
+say "===match start==="
+say $&;
+say "===match end===";
+
+执行，将输出：
+
+===match start===
+ab
+c
+===match end===
+```
+### “.”可以匹配换行 s
+默认情况下"."是不能匹配换行符\n的，开启了s修饰符功能后，可以让"."匹配换行符。案例见多行匹配模式
+
+### 忽略空白 x
+perl正则支持表达式的分隔，甚至支持注释，只需加上x修饰符即可。这时候正则表达式中出现的所有空白符号都不会当作正则的匹配对象，而是直接被忽略。如果想要匹配空白符号，可以使用\s表示，或者将空格使用\Q...\E包围。  
+例如，以下4个匹配操作是完全等价的。
+```
+my $ans="cat sheep tiger";
+$ans =~ /(\w) *(\w) *(\w)/;       # 正常情况下的匹配表达式
+$ans =~ /(\w)\s*   (\w)\s*   (\w)/x;
+$ans = ~ /
+        (\w)\s*      # 本行是注释：匹配第一个单词
+        (\w)\s*      # 本行是注释：匹配第二个单词
+        (\w)         # 本行是注释：匹配第三个单词
+        /x;
+$ans =~ /
+         (\w)\Q \E   # \Q \E强制将中间的空格当作字面符号被匹配
+         (\w)\Q \E
+         (\w)
+        /x;
+```
+### 代替特殊变量 p
+前面的3个特殊变量$`、$&和$'可以保存匹配内容之前的内容，匹配内容以及匹配内容之后的内容。另外perl提供了一个p修饰符，能实现完全相同的功能
+* ${^PREMATCH}    <=>   $`
+* ${^MATCH}       <=>   $&
+* ${^POSTMATCH}   <=>   $'
+```
+my $ans="cat sheep tiger";
+$ans =~ /sheep/p;
+print "${^PREMATCH}\n";     # 输出"cat "
+print "${^MATCH}\n";        # 输出"sheep"
+print "${^POSTMATCH}\n";    # 输出" tiger"
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+cat 
+sheep
+ tiger
+```
+###	仅编译一次 o
+在较老的perl版本中，如果使用同一个正则表达式做多次匹配，正则引擎将只多次编译正则表达式。很多时候正则表达式并不会改变，比如循环匹配文件中的行，这样的多次编译导致性能下降很明显，于是可以使用o修饰符让正则引擎对同一个正则表达式不重复编译。  
+在perl5.6中，默认情况下对同一正则表达式只编译一次，但同样可以指定o修饰符，使得即使正则表达式变化了也不要重新编译。一般情况下，可以无视这个修饰符。
+### 匹配范围 (?imsx-imsx:pattern)
+前文介绍的修饰符adluoimsxpngc都是放在m//{FLAG}的flag处的，放在这个位置会对整个正则表达式产生影响，所以它的作用范围有点广。
+
+例如m/pattern1 pattern2/i的i修饰符会影响pattern1和pattern2。
+
+perl允许我们定义只在一定范围内生效的修饰符，方式是(?imsx:pattern)或(?-imsx:pattern)或(?imsx-imsx:pattern)，其中加上-表示去除这个修饰符的影响。这里只列出了imsx，因为这几个最常用，其他的修饰符也一样有效。
+
+例如，对于待匹配字符串"Hello world gaoxiaofang"，使用以下几种模式去匹配的话：
+
+* /(?i:hello) world/   表示匹配hello时，可忽略大小写，但匹配world时仍然区分大小写。所以匹配成功
+
+* /(?ims:hello.)world/   表示可以跨行匹配helloworld，也可以匹配单行的hellosworld，且hello部分忽略大小写。所以匹配成功
+
+* /(?i:hello (?-i:world) gaoxiaoFANG)/  表示在第二个括号之前，可用忽略大小写进行匹配，但因为第二个括号里指明了去除i的影响，所以对world的匹配会区分大小写，但是对gaoxiaofang部分的匹配又不区分大小写。所以匹配成功
+
+* /(?i:hello (?-i:world) gaoxiao)FANG/   和前面的类似，但是将"FANG"放到了括号外，意味着这部分要区分大小写。所以匹配失败
+
+## 反斜线序列
+### 锚定类
+所谓锚定，是指它匹配的是位置，而非字符，比如锚定行首的意思是匹配第一个字母前的空字符。也就是很多人说的"零宽断言(zero-width assertions)"。
+
+    \b：匹配单词边界处的空字符
+    \B：匹配非单词边界处的空字符
+    \<：匹配单词开头处的空字符
+    \>：匹配单词结尾处的空字
+    \A：匹配绝对行首，换句话说，就是输入内容的开头
+    \z：匹配绝对行尾，换句话说，就是输入内容的绝对尾部
+    \Z：匹配绝对行尾或绝对行尾换行符前的位置，换句话说，就是输入内容的尾部
+    \G：强制从位移指针处进行匹配，详细内容见g和c修饰符以及\G
+```
+```
 # 函数
 
 ## 简单定义与调用
@@ -3020,14 +3244,15 @@ subname(
   "age", 23,
 );
 ```
-## ------------------
+
+## shift弹出参数
 使用shift来弹出参数列表中的第一个，shell里也有类似功能
 ```
 在子程序内部，下面两个操作是等价的：
 shift @_;
 shift;
 ```
-
+## 传递引用与匿名对象
 
 传递数组或hash，建议的方式是传递它们的引用。也可以传递匿名数组、匿名hash，它们本质上仍然是引用。
 ```
@@ -3129,6 +3354,212 @@ counter 值为：4
 * 注1：state仅能创建闭合作用域为子程序内部的变量
 * 注2：state是从Perl 5.9.4开始引入的，所以使用前必须加上 use
 * 注3：state可以声明标量、数组、哈希。但在声明数组和哈希时，不能对其初始化（至少Perl 5.14不支持）
+
+
+# 匿名对象
+可有构建匿名的对象，这样就没必要去为只用一两次的数组、hash去取名字，有时候取名是很烦的事。
+* 使用中括号 [ ] 构建匿名数组
+* 使用大括号 { } 构建匿名hash
+* 不包含任何元素的 [ ] 和 { } 分别是匿名空数组、匿名空hash
+## 构造匿名对象
+在数组、hash中构建匿名数组：
+```
+my @name=('fairy',['longshuai','wugui','xiaofang']);
+# 也可使用qw方式 my @name=('fairy',[qw(longshuai wugui xiaofang)]);
+my %hash=('longshuai' => ['male',18,'jiangxi'],
+        'wugui'     => ['male',20,'zhejiang'],
+        'xiaofang'  => ['female',19,'fujian'],
+       );
+
+say "$name[1]";          # 输出ARRAY(0x...)
+say "$hash{wugui}";      # 输出ARRAY(0x...)
+
+say "$name[1][2]";
+say "$hash{wugui}[1]";
+```
+在数组、hash中构建匿名hash：
+```
+
+my @name=(         # 匿名hash作为数组的元素
+       {    # 第一个匿名hash
+        'name'=>'longshuai',
+        'age'=>18,
+        'prov'=>'jiangxi',
+       },
+       {    # 第二个匿名hash
+        'name'=>'wugui',
+        'age'=>20,
+        'prov'=>'zhejiang',
+       },
+       {    # 第三个匿名hash
+        'name'=>'xiaofang',
+        'age'=>19,
+        'prov'=>'fujian',
+       },
+      );
+
+my %hash=(          # 匿名hash作为hash的value
+        'longshuai'=>{   # 第一个匿名hash
+                      'gender'=>'male',
+                      'age'   =>18,
+                      'prov'  =>'jiangxi',
+                     },
+        'wugui'=>{    # 第二个匿名hash
+                  'gender'=>'male',
+                  'age'   =>20,
+                  'prov'  =>'zhejiang',
+                 },
+        'xiaofang'=>{    # 第三个匿名hash
+                     'gender'=>'female',
+                     'age'   =>19,
+                     'prov'  =>'fujian',
+                    },
+      );
+
+say $name[2];       # 输出HASH(0x...)
+say $hash{"wugui"};   # 输出HASH(0x...)
+say "$name[2]{age}";
+say "$hash{wugui}{prov}";
+```
+## 匿名对象的的引用
+```
+$aref = [ 1, "foo", undef, 13 ];  	   # $aref 保存了这个数组的'引用'
+
+下面2句与上面类似，只是没有创建一个多余的数组变量
+@array = (1, 2, 3);
+$aref = \@array;
+
+$href = { APR =>4, AUG =>8 };   	   # $href 保存了这个哈希的'引用'
+
+可以创建空的
+$aref2 = [];
+$href2 = {};
+```
+## 解除匿名对象的引用
+当输出匿名对象时，其实输出的是个引用。
+```
+可以始终用一个带有大括号的对象'引用'，来替换一个数组的名字
+
+对数组@a操作    对'引用'$aref所指向的数组操作
+@a              @{$aref}                		一个数组
+reverse @a      reverse @{$aref}        		对一个数组做倒序排序
+$a[3]           ${$aref}[3]             		数组中的一个成员
+				$$aref[3]
+$a[3] = 17;     ${$aref}[3] = 17        		对一个成员赋值
+
+对哈希%a操作    对'引用'$href所指向的哈希操作
+%h              %{$href}             			一个哈希
+keys %h         keys %{$href}         			从哈希中将键取出来
+$h{'red'}       ${$href}{'red'}       			哈希中的一个成员
+$h{'red'} = 17  ${$href}{'red'} = 17  			对一个成员赋值
+
+下面未测试：
+遍历原始数组
+		for my $element (@array) {
+				...
+		}
+接着用'引用'替代数组名@array：
+        for my $element (@{$aref}) {
+           say $element;
+        }
+遍历原始哈希
+        for my $key (keys %hash) {
+          print "$key =>; $hash{$key}\n";
+        }
+然后用'引用'代替那个哈希的名字：
+        for my $key (keys %{$href}) {
+          print "$key =>; ${$href}{$key}\n";
+        }
+```
+解除匿名数组对象，并获取匿名数组中的元素
+```
+my $aref=[ 
+           'longshuai',
+           'wugui'    ,
+           'xiaofang' ,     
+];
+print "${$aref}[1]\n";
+
+my $href={
+           'longshuai'=> ['male',18,'jiangxi'],
+           'wugui'    => ['male',20,'zhejiang'],
+           'xiaofang' => ['female',19,'fujian'],      
+          };
+print "${$href}{wugui}[0]\n";
+
+
+
+say "@{ ['longshuai','xiaofang','wugui'] }";   # 解除匿名对象的引用
+say "@{ [qw(longshuai xiaofang wugui)] }";     # 解除匿名对象的引用
+say "@{ [qw(longshuai xiaofang wugui)] }[1]";  # 获取匿名对象中的第二个元素
+```
+解除匿名hash对象，并获取匿名hash中的元素
+```
+my $ref_hash={   # 构造匿名hash，赋值给引用变量
+           'longshuai'=> ['male',18,'jiangxi'],
+           'wugui'    => ['male',20,'zhejiang'],
+           'xiaofang' => ['female',19,'fujian'],      
+          };
+
+my @mykeys=keys %{ $ref_hash };  # 通过引用还原到匿名hash
+say "@mykeys";                # 输出匿名hash中的键
+say $ref_hash->{wugui}[2];    # 输出匿名hash中匿名数组的某个元素
+
+-----------------------------
+
+my @mykeys=keys %{   # 解除匿名hash
+                 { # 构造匿名hash
+                  'longshuai'=> ['male',18,'jiangxi'],
+                  'wugui'    => ['male',20,'zhejiang'],
+                  'xiaofang' => ['female',19,'fujian'],
+                 }
+               };
+say @mykeys;
+
+say %{   # 解除匿名hash
+       { # 构造匿名hash
+        'longshuai'=> ['male',18,'jiangxi'],
+        'wugui'    => ['male',20,'zhejiang'],
+        'xiaofang' => ['female',19,'fujian'],      
+       },
+     };
+```
+## 区分匿名{}与作用域{}
+* 大括号前面加上+符号，即+{...}，表示这个大括号是用来构造匿名hash的
+* 大括号内部第一个语句前，多使用一个;，即{;...}，表示这个大括号是一次性语句块
+```
+@{ +[qw(longshuai wugui)]}   # 匿名数组中括号前
+@{ +$ref_arr }           # 数组引用变量前
+%{ +$ref_hash }          # hash引用变量前
+```
+## autovivification特性
+解除引用时，如果解除目标不存在，会自动补全结构中的元素内容  
+https://www.cnblogs.com/f-ck-need-u/p/9718238.html?utm_medium=referral&utm_source=itdadao
+```
+use 5.010;
+push  @{ $config{path} },'/usr/bin/perl';
+
+say keys %config;        # 输出：path
+say $config{path};       # 输出：ARRAY(0x...)
+say $config{path}[0];    # 输出：/usr/bin/perl
+
+perl在解除引用时 1.自建一个hash对象；2.自建hash对象中的一个元素；3.自建hash对象中某个元素的value部分。
+-------------------------
+
+push @name,"longshuai";
+$person{name}="longshuai";
+
+print "$name[0]\n";
+my @keys = keys %person;
+print "keys: @keys\n"; 
+
+@{ $config{path} }[2]='/usr/bin/perl';
+print "$config{path}\n";       # 输出：ARRAY(0x5571664403c0)
+print "$config{path}[0]\n";    # 输出：空
+print "$config{path}[1]\n";    # 输出：空
+print "$config{path}[2]\n";    # 输出：/usr/bin/perl
+print scalar @{$config{path}};   # 输出元素个数：3
+```
 # 特殊变量
 ```
 Perl 语言中定义了一些特殊的变量，通常以 $, @, 或 % 作为前缀，例如：$_。
@@ -3136,6 +3567,13 @@ Perl 语言中定义了一些特殊的变量，通常以 $, @, 或 % 作为前�
 如果你想使用英文名的特殊变量需要在程序头部添加 use English;。这样就可以使用具有描述性的英文特殊变量。
 ```
 https://www.runoob.com/perl/perl-special-variables.html
+## 默认参数变量 $_
+对于需要参数的函数或表达式，但却没有给参数，这是将会使用perl的默认参数变量$_
+```
+$_="abcde";
+print ;
+```
+
 # 进程管理
 * 特殊变量 $$ 或 $PROCESS_ID 来获取进程 ID。
 * %ENV 哈希存放了父进程，也就是shell中的环境变量，在Perl中可以修改这些变量。
@@ -3218,4 +3656,36 @@ Thu Dec  2 17:37:09 CST 2021
 ```
 ## Kill
 kill('signal', (Process List))给一组进程发送信号。signal是发送的数字信号，9为杀掉进程。  
-kill('INT', 104, 102);
+kill('KILL', 进程号1, 进程号2...);
+# 目录操作
+```
+use Cwd;
+$dir = cwd();	# 效果同pwd
+```
+# 文件操作
+```
+say $0			# 全路径自身文件名
+```
+## 读取文件每一行
+将文件作为perl命令行的参数，perl会使用<>去读取这些文件中的内容。
+```
+由于<>和<STDIN>读取文件、读取标准输入的时候总是自带换行符，很多时候这个自带的换行符都会带来格式问题。所以，有必要在每次读取数据时将行尾的换行符去掉，使用chomp即可
+
+脚本内容：
+foreach (<>){
+    chomp;
+    say "$_";
+}
+
+[huawei@n148 perl]$ perl 1.pl /etc/passwd
+```
+# 模块操作
+```
+[huawei@n148 perl]$ cpan -i Term::ANSIScreen	# 安装模块
+```
+# 命令行
+其实就是一行式。perl命令行加上"-e"选项，就能在perl命令行中直接写perl表达式。如
+```
+echo "malongshuai" | perl -e '$name=<STDIN>;print $name;'
+强烈建议"-e"后表达式使用单引号包围，而不是双引号。
+```
