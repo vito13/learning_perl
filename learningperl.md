@@ -15,11 +15,9 @@ my %hash = (one=>1, two=>2, three=>3,);
 ![](https://perl-book.junmajinlong.com/imgs/2021-01-25_23-46-43.png)
 
 ## Sigil
-Perl在做变量赋值时、在使用变量时，都会在变量前加上变量前缀，这些特殊的前缀，在Perl中称为Sigil。Sigil前缀隐含了多种含义，其中之二是：
-* 根据变量所保存的内存地址去访问该地址所指向的内存空间
-* 根据Sigil类型决定如何划分以及如何访问内存空间
+是变量名的前缀，包括$、@、%，在Perl中称为Sigil。作用是区分类型。
 ## 标量 $
-标量是一个单一的数据单元。 数据可以是整数，浮点数，字符，字符串，段落等。简单的说它可以是任何东西
+可以是数字或字符串，计算结果也是标量
 ```
 $age = 25;             # 整型
 $name = "runoob";      # 字符串
@@ -152,7 +150,12 @@ junmajinlong
 junmajinlong
 
 ```
-
+## 交换2个变量
+```
+($a,$b)=qw/a1 2b/;
+($a,$b)=($b,$a);
+say "$a,$b";
+```
 
 ## 左值、右值
 * 当Sigil出现在赋值操作符左边时，表示对变量进行赋值。找到变量的内存地址，然后将数据写入该内存。
@@ -221,6 +224,17 @@ e not numeric
 e not numeric
 
 ```
+## 关于true与false
+Perl没有直接代表布尔值的false值和true值。代表布尔假的值有如下：
+
+    数值0、0.0
+    空字符串''、字符串"0"
+    undef
+    空列表，包括() ((())) ((),())
+    空数组
+    空hash
+除以上代表布尔假的值之外，其余都是布尔真。
+
 ## 比较运算符
 https://www.runoob.com/perl/perl-operators.html
 ```
@@ -279,6 +293,17 @@ $m < $n and $m = $n;   # 将$m和$n之间较大值保存到变量m
 say !!"abc";   # 1
 say !!"";      # 空
 say ((!!"") + 2);  # 2
+```
+## 检测undef
+```
+my $test;
+if (defined($test))
+{
+	print $test;
+}
+else{
+	print "undef";
+}
 ```
 ## 逻辑定义或 //
 ||会短路计算，且有返回值。结合这两点，可以为变量做默认赋值。
@@ -449,22 +474,10 @@ abc15
 abc8
 
 ```
-## 读取标准输入
+
+## 使用警告
 ```
-使用一对尖括号格式的<STDIN>来读取来自非文件的标准输入，例如来自管道的数据，来自输入重定向的数据或者来自键盘的输入，<STDIN>读取的输入会自带换行符，所以print输出的时候不要加上额外的换行符。如需去除行尾的换行，使用chomp
-
-脚本内容：
-my $data=<STDIN>;
-say "$data";
-下面是循环的样式
-foreach (<STDIN>){
-    say "$_";
-}
-
-[huawei@n148 perl]$ echo "aaa\nbbb"|perl 1.pl 
-aaa\nbbb
-
-[huawei@n148 perl]$ 
+use warnings;
 ```
 # 引用
 引用就是指针，Perl 引用是一个标量类型可以指向变量、数组、哈希表甚至子程序，可以应用在程序的任何地方。
@@ -692,16 +705,6 @@ $cref = \&PrintHash;
 元素 : runoob
 ```
 # 流程控制
-## 关于true与false
-Perl没有直接代表布尔值的false值和true值。代表布尔假的值有如下：
-
-    数值0、0.0
-    空字符串''、字符串"0"
-    undef
-    空列表，包括() ((())) ((),())
-    空数组
-    空hash
-除以上代表布尔假的值之外，其余都是布尔真。
 
 ## if、unless、？：
 ```
@@ -1215,23 +1218,22 @@ printf "%x\n", 50;   # 32
 
 # 字符串相关
 ## 单引号和双引号
-
-
-
+单引号内除了'和\要加\，且只能转这2个，其余都不转义，都原样输出
 ```
-$a = 10;
-print "a = $a\n";
-print 'a = $a\n';
-print "Hello, world\n";    # 双引号
-print 'Hello, world\n';    # 单引号
-
+my $a = 10;
+say ' $a \' "  \\  \t  \n';    # 单引号
 [huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
-a = 10
-a = $a\nHello, world
-Hello, world\n[huawei@n148 perl]$ 
+ $a ' "  \  \t  \n
+[huawei@n148 perl]$ 
+```
+双引号的都转义
+```
+my $a = 10;
+say " $a ' \"  \\  \t  \n";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+ 10 ' "  \        
 
-双引号 \n 输出了换行，而单引号没有。
-Perl双引号和单引号的区别: 双引号可以正常解析一些转义字符与变量，而单引号无法解析会原样输出。
+[huawei@n148 perl]$ 
 ```
 ## 多行字符串
 可以使用单引号来输出多行字符串
@@ -1271,9 +1273,16 @@ JuNMaJiNLoNg
 ```
 
 ## 字符串连接和重复
-Perl使用点.来串联字符串。Perl使用x(字母x)来重复字符串指定次数，如果x重复次数是小数，则截断为整数，如果x是0，则清空字符串。
+Perl使用点.来串联字符串。Perl使用x来重复字符串指定次数，如果x重复次数是小数，则截断为整数，如果x是0，则清空字符串。
 ```
+my $a = 10;
+$a.='abc';
+say "$a";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+10abc
+[huawei@n148 perl]$ 
 
+------------------------------
 $a = "run";
 $b = "oob";
 print "\$a  = $a ， \$b = $b\n";
@@ -1306,7 +1315,7 @@ www.junmajinlong.com
 [huawei@n148 perl]$
 
 ```
-## 移除尾部换行符 chomp
+## 去掉行尾换行 chomp
 移除尾部换行符，如果尾部没有换行符，则不做任何事。实际上，chomp移除的是$/变量值对应的字符，该变量表示输入记录分隔符，默认为换行符，因此默认移除字符串尾部换行符。注意：
 * chomp不能对字符串字面量进行操作
 * chomp可以对左值进行操作
@@ -1316,6 +1325,13 @@ www.junmajinlong.com
     1 对于字符串，如果有换行符，则返回1，否则返回0，因此可通过该返回值判断字符串是否有结尾换行符  
     2 对于列表，可以通过返回值来判断总共操作了多少行数据
 ```
+chomp(my $test=<STDIN>);
+print $test;
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+123
+123[huawei@n148 perl]$ 
+
+
 my $name = "junmajinlong\n";
 chomp $name;  # name变为"junmajinlong"
 chomp $name;  # name仍然是"junmajinlong"
@@ -1344,7 +1360,8 @@ chop $name2;   # $name2 = "junmajinlon"
 ```
 
 
-
+## 翻转字符串 reverse
+见列表的reverse
 ## 取子串 substr
 语法
 ```
@@ -1470,8 +1487,14 @@ say crypt("hello", "wo");     # woglQSsVNh3SM
 say crypt("hello", "wx");     # wxNrzGG7p9cyw
 ```
 
-## sprintf
-
+## print & sprintf
+```
+print 456;
+print "123\n";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+456123
+[huawei@n148 perl]$ 
+```
 
 
 ## 字符索引
@@ -1502,12 +1525,12 @@ say rindex $str,"you",10; # 找出offset=10左边的最后一个you，输出：5
 
 
 # 数组
-* Perl 数组一个是存储标量值的列表变量，变量可以是不同类型。数组变量以 @ 开头。访问数组元素使用 $ + 变量名称 + [索引值] 格式来读取
+* 数组是存储列表的变量，列表元素可以是不同类型。数组变量以 @ 开头。访问数组元素使用 $ + 变量名称 + [索引值] 格式来读取
 * 数组名指向堆中的连续内存，堆中的连续内存里的每个地址再分别指向具体元素的地址，如下图。数组元素可以异质。  
 ![](https://perl-book.junmajinlong.com/imgs/1610678693613.png)  
 * 数组的常见操作还有：each、pop、push、shift、unshift、keys、values、splice。  
 ## 创建
-数组变量以 @ 符号开始，元素放在括号内，也可以以 qw 开始定义数组。qw中使用空格分隔各元素，如果某个元素包含空格，则无法使用qw字面量语法
+数组变量以 @ 符号开始，元素放在括号内
 ```
 @hits = (25, 30, 40);             
 @names = ("google", "runoob", "taobao");
@@ -1519,22 +1542,8 @@ print "\$names[1] = $names[1]\n";
 print "\$names[2] = $names[2]\n";
 
 @array = (1, 2, 'Hello');
-@array = qw/这是 一个 数组/;
-第二个数组使用 qw// 运算符，它返回字符串列表，数组元素以空格分隔。当然也可以使用多行来定义数组
 
-
-也可以使用多行来定义数组
-@days = qw/google
-taobao
-...
-runoob/;
-
-```
-qw//可以替换为其他成对的符号，这一点和q或qq的用法完全一致。qw()、qw[]、qw!!、qw%%
-
-Perl 提供了可以按序列输出的数组形式，格式为 起始值 + .. + 结束值
-```
-
+也支持..构建方式
 @var_10 = (1..10);
 @var_20 = (10..20);
 @var_abc = ('a'..'z');
@@ -1569,7 +1578,7 @@ print "list 的值 = @list\n";
 list 的值 = 4 3 2
 ```
 
-## 长度与最大索引
+## 长度与最大索引 $#arr
 长度即数组有多少个元素，有些场景直接@数组返回的也是长度，如下演示
 ```
 my @arr = (11,22,33,44);
@@ -1689,7 +1698,7 @@ my @langs = qw(perl python shell php);
 @langs[1,2]=qw(ruby bash); # 将python改为ruby，shell改为bash
 say "@langs";   # perl ruby bash php
 ```
-## 遍历
+## 遍历与each
 
 ```
 #!/usr/bin/perl
@@ -1763,13 +1772,28 @@ for my $v (@arr) {
 
 say "@arr";  # 输出：12 23 34 45
 ```
+使用each返回索引与v
+```
+my @h = qw(k1 v1 k2 v2 k3 v3);
+while(my ($idx, $v) = each @h){
+  say "idx: $idx, v: $v";
+}
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+idx: 0, v: k1
+idx: 1, v: v1
+idx: 2, v: k2
+idx: 3, v: v2
+idx: 4, v: k3
+idx: 5, v: v3
+[huawei@n148 perl]$ 
+```
 ## 默认迭代变量 $_
-控制变量是可以省略的，此时将使用Perl的默认标量变量$_。Perl的很多操作都允许省略操作目标，此时将使用默认变量$_作为这些操作的操作目标
+控制变量是可以省略的，此时将使用Perl的默认标量变量 $ _。Perl的很多操作都允许省略操作目标，此时将使用默认变量$_作为这些操作的操作目标
 ```
 for(11,22,33){ say $_; }
 for $_ (11,22,33) { say $_; }
 ```
-## each
+
 
 ## keys、values
 * keys函数在列表上下文返回数组的所有索引或hash的所有key，在标量上下文返回数组或hash的元素数量
@@ -1827,6 +1851,14 @@ my @arr2 = (11,22,33);
 unshift @arr2, 'a', 'b';
 unshift @arr2, qw(aa bb);
 say "@arr2"; # aa bb a b 11 22 33
+```
+## 清空数组 ( )
+```
+my @h = qw(k1 v1 k2 v2 k3 v3);
+@h=();
+while(my ($idx, $v) = each @h){
+  say "idx: $idx, v: $v";
+}
 ```
 ## 替换数组元素 splice
 语法
@@ -1923,7 +1955,18 @@ print "numbers = @numbers\n";
 @numbers = (@odd, @even);
 print "numbers = @numbers\n";
 ```
+## 查找
+```
+$,=',';
+sub find{
+	my ($what,@arr)=@_;
+	foreach(0..$#arr) {return $_ if $what == $arr[$_];}
+	-1;
+}
+say find(3, qw/1 2 3 4 5/);
+```
 # 列表
+* 是标量的有序集合，列表指的是数据
 * Perl中的列表不是数据类型，而是Perl在内部用来临时存放数据的一种方式，只能由Perl自行维护。
 * 列表临时保存在栈中，当使用了列表数据后，这些列表数据就会出栈
 * 可以将Perl列表看作是一种特殊的底层可迭代对象，它看起来像数组，但不是数组。
@@ -1934,6 +1977,40 @@ my @arr = (11,22,33);  # 数组arr的元素来自于列表
 * 列表常见操作包括：grep、join、map、reverse、sort、unpack、x操作符执行列表重复，等等
 * 标准库List::Utils中也提供了很多常见的列表操作，如reduce、first、any、sum、uniq、shuffle等。
 
+## 列表直接量
+向下面()里的即是
+```
+my $a=10;
+my $b=30;
+$, = ", "; 
+say (1,2,'xxx',3..$a, $a+$b);
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+1, 2, xxx, 3, 4, 5, 6, 7, 8, 9, 10, 40
+```
+## 列表赋值
+注意这里特指等会右边的部分
+```
+1 给2个标量赋值
+($a,$b)=qw/a1 2b/;
+say "$a,$b";
+
+2 给数组赋值
+my @a;
+($a[0],$a[1])=qw/a1 2b/;
+$,=',';
+say @a;
+```
+## 构建列表 qw
+用qw定义单引号包围的元素列表。qw中使用空格分隔各元素，如果某个元素包含空格，则不要用qw。qw（）可以替换为其他成对的符号，这一点和q或qq的用法完全一致。qw[]、qw!!、qw%%
+```
+my @array = qw(a b
+ccc    11);
+$, = ", "; 
+say @array;
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+a, b, ccc, 11
+```
 ## 转标量（空得undef，非空得尾元素）
 列表会返回最后一个列表元素作为标量数据，其他元素被丢弃。
 ```
@@ -1951,6 +2028,7 @@ my @arr = (11,22,33);
 say "@arr";         # 输出69
 
 ```
+
 ## 列表重复 x
 列表重复通常用于初始化构建一个特定大小的数组，也常用于生成测试数据
 ```
@@ -2050,7 +2128,7 @@ my @name=qw(ma long shuai);
 my @new_names=map {$_,$_ x 2} @name;
 say "@new_names";  # ma mama long longlong shuai shuaishuai
 ```
-## sort
+## 排序 sort
 sort用于对列表元素进行排序，返回排序后的列表。
 ```
 my @str=qw(abc Abc ABc 123);
@@ -2067,14 +2145,23 @@ my @sorted_nums_desc = sort {$b<=>$a} @nums;
 say "@sorted_nums_asc";  # 4 7 11 12 33 55
 say "@sorted_nums_desc"; # 55 33 12 11 7 4
 ```
-## reverse
-reverse用于反转列表：在列表上下文中返回元素被反转后的列表，在标量上下文中，返回原始列表各元素组成的字符串的反转字符串
+## 翻转列表 reverse
+可以操作列表和字符串，不会覆盖原内容，返回翻转后的结果
 ```
 my @arr1 = qw(aa bb cc dd);
-say "@{[reverse @arr1]}";  # dd cc bb aa
-say ~~(reverse @arr1);     # ddccbbaa，返回aabbccdd的反转
+@arr1=reverse @arr1;
+say @arr1;
 
-say ~~reverse "hello";  # olleh
+my $s='abc';
+my $x=reverse $s;
+say $s;
+say $x;
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+ddccbbaa
+abc
+cba
+[huawei@n148 perl]$ 
 ```
 # 哈希
 * hash结构中的key是唯一的
@@ -2289,7 +2376,7 @@ say "values: @values"; # 输出：values: v3 v2 v1
 $size = @keys;
 print "1 - 哈希大小: $size\n";
 ```
-## 遍历
+## 遍历与each
 ```
 my %h = qw(k1 v1 k2 v2 k3 v3);
 while(my ($k, $v) = each %h){
@@ -3096,7 +3183,7 @@ perl允许我们定义只在一定范围内生效的修饰符，方式是(?imsx:
     \G：强制从位移指针处进行匹配，详细内容见g和c修饰符以及\G
 ```
 ```
-# 函数
+# 子程序
 
 ## 简单定义与调用
 ```
@@ -3124,6 +3211,7 @@ roll();		首选
 	# 返回多值组成的列表
 	return 1,2,3;
 	return (1,2,3);
+	return (1..3);
 
 	return无法直接返回数组和hash，因为它们会先转换成列表，再以列表的方式返回。如果确实要返回数组或列表，应当返回它们的引用。
 	return $array_ref;
@@ -3157,8 +3245,40 @@ roll();		首选
 	
 ## wantarray
 ## 传递标量参数
+* 子程序可有多个参数，函数内使用 @_ 表示参数列表
+* 子程序内也可直接使用 $ _[0], $ _[1]代表第n个参数
+* 不论参数是何类型，传给子程序时，perl默认按引用的方式传递
+* 可以通过改变 @_ 数组中的值来改变外面实参的值
+* 子程序内多使用shift按顺序弹出
 ```
-Perl 子程序可以和其他编程一样接受多个参数，子程序参数使用特殊数组@_标明。因此子程序第一个参数为 $_[0], 第二个参数为 $_[1], 以此类推。不论参数是标量型还是数组型的，用户把参数传给子程序时，perl默认按引用的方式调用它们。用户可以通过改变 @_ 数组中的值来改变相应实际参数的值。
+参数是n个标量
+$,=',';
+sub f{
+	say @_;			整个参数列表
+	say $_[0];		单个元素
+	say $_[1];
+	say $_[2];
+}
+f(1,'aaa', 123);
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+1,aaa,123
+1
+aaa
+123
+[huawei@n148 perl]$ 
+---------------------------------------
+sub add{
+	die unless 2==@_;		注意这里还可以这样检查参数个数
+	my($a,$b)=@_;
+	$a+$b;
+}
+say add(1, 123);
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+124
+[huawei@n148 perl]$ 
+
+---------------------------------------
+
 
 
 # 定义求平均值函数
@@ -3251,6 +3371,18 @@ subname(
 在子程序内部，下面两个操作是等价的：
 shift @_;
 shift;
+
+
+$,=',';
+sub max{
+	my $maxval=shift;
+	foreach(@_)
+	{
+		$maxval=$_ if $_>$maxval;
+	}
+	$maxval;
+}
+say max(1, 123, '45aaa', 2);
 ```
 ## 传递引用与匿名对象
 
@@ -3572,6 +3704,10 @@ https://www.runoob.com/perl/perl-special-variables.html
 ```
 $_="abcde";
 print ;
+
+foreach(1..10){
+	print $_;
+}
 ```
 
 # 进程管理
@@ -3682,6 +3818,30 @@ foreach (<>){
 # 模块操作
 ```
 [huawei@n148 perl]$ cpan -i Term::ANSIScreen	# 安装模块
+```
+# 输入与输出
+## 读取标准输入
+```
+使用一对尖括号格式的<STDIN>来读取来自非文件的标准输入，例如来自管道的数据，来自输入重定向的数据或者来自键盘的输入，<STDIN>读取的输入会自带换行符，所以print输出的时候不要加上额外的换行符。如需去除行尾的换行，使用chomp
+
+读取一行的方法：
+my $data=<STDIN>;
+say "$data";
+
+循环读取的方法
+while (defined($_=<STDIN>)){
+	print "I saw $_";
+}
+
+这个方式今能用于命令行，交互时候不好使。。。
+foreach (<STDIN>){
+    say "$_";
+}
+
+[huawei@n148 perl]$ echo "aaa\nbbb"|perl 1.pl 
+aaa\nbbb
+
+[huawei@n148 perl]$ 
 ```
 # 命令行
 其实就是一行式。perl命令行加上"-e"选项，就能在perl命令行中直接写perl表达式。如
