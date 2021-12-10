@@ -479,6 +479,12 @@ abc8
 ```
 use warnings;
 ```
+## 环境变量 %ENV
+```
+while(my ($k, $v) = each %ENV){
+  say "key: $k, v: $v";
+}
+```
 # 引用
 引用就是指针，Perl 引用是一个标量类型可以指向变量、数组、哈希表甚至子程序，可以应用在程序的任何地方。
 ## 创建引用
@@ -862,6 +868,14 @@ say "@arr";   # 4 5
 foreach $a (@list){
     print "a 的值为: $a\n";
 }
+
+
+say $_ foreach (qw\a b c\);
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+a
+b
+c
+[huawei@n148 perl]$ 
 ```
 ## do while
 ```
@@ -1362,7 +1376,7 @@ chop $name2;   # $name2 = "junmajinlon"
 
 ## 翻转字符串 reverse
 见列表的reverse
-## 取子串 substr
+## 取子串、替换子串 substr
 语法
 ```
 substr STRING,OFFSET,LENGTH,REPLACEMENT
@@ -1387,9 +1401,12 @@ say substr $str,5,-3;  # 从位移5取到位移-3(从后往前算)：your everyt
 say substr $str,5,4,"fairy's";  # 替换源字符串，但返回提取子串：your
 say $str;              # 源字符串已被替换：love fairy's everything
 
-$str="love your everything";
+my $str="love your everything";
 substr($str,5,4) = "fairy's";
 say $str;       # 源字符串已被替换：love fairy's everything
+
+substr($str,0,4) = 'i hate';   # 也可以这样替换原字符串
+say $str;
 
 ```
 
@@ -1487,17 +1504,8 @@ say crypt("hello", "wo");     # woglQSsVNh3SM
 say crypt("hello", "wx");     # wxNrzGG7p9cyw
 ```
 
-## print & sprintf
-```
-print 456;
-print "123\n";
-[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
-456123
-[huawei@n148 perl]$ 
-```
 
-
-## 字符索引
+## 字符索引 index rindex
 用来找出给定字符串中某个子串或某个字符的索引位置。
 * index：获取字符所在索引位置
 * rindex：从后向前搜索，获取字符所在索引位置
@@ -1632,6 +1640,17 @@ say @arr,'a','b';  # 输出：112233ab
 print/say输出时，默认使用内置变量$,来分隔列表各元素，该内置变量默认值为undef，因此默认情况下各元素被输出时紧密相连。
 $, = "_";   # 将其修改为下划线
 say @arr,'a','b';  # 11_22_33_a_b
+
+还可以使用printf格式化输出，比较帅
+my @arr = (11, 22, 33, 44);
+printf "the items are :\n" . ("%10s\n" x @arr), @arr;
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+the items are :
+        11
+        22
+        33
+        44
+[huawei@n148 perl]$ 
 ```
 ## 转标量（得length）
 数组转换为标量得到的是数组的长度
@@ -2164,11 +2183,8 @@ cba
 [huawei@n148 perl]$ 
 ```
 # 哈希
-* hash结构中的key是唯一的
+* hash结构中的key是唯一的，是字符串，值随意
 * hash结构不保证键值对的顺序
-* hash结构的内存空间利用率不高
-* hash结构的搜索速度和增删键值对的速度很快，且不会随着所存储键值对元素数量的增长而变慢，它由hash桶的大小决定
-* 当某次向hash中存储键值对时因空间不够而触发了扩容，速度会很慢
 ```
 %data = ('google', 'google.com', 'runoob', 'runoob.com', 'taobao', 'taobao.com');
  
@@ -2368,6 +2384,17 @@ my @values = values %h;
 say "keys: @keys";     # 输出：keys: k3 k2 k1
 say "values: @values"; # 输出：values: v3 v2 v1
 ```
+## 判断空哈希
+```
+my %h = qw(k1 v1 k2 v2 k3 v3);
+if (%h)
+{
+	say "hash is not empty";
+}
+else{
+	say "hash is empty";
+}
+```
 ## 获取哈希大小
 先获取 key 或 value 的所有元素数组，再计算数组元素多少来获取哈希的大小
 ```
@@ -2405,12 +2432,11 @@ foreach my $v (values %h){
   say $v;
 }
 ```
-## 检测元素是否存在 exists
+## 检测k是否存在 exists
 exists用来判断hash结构中是否存在某个key
 ```
-%data = ('google'=>'google.com', 'runoob'=>'runoob.com', 'taobao'=>'taobao.com');
- 
-if( exists($data{'facebook'} ) ){
+my %data = ('google'=>'google.com', 'runoob'=>'runoob.com', 'taobao'=>'taobao.com');
+if( exists $data{'facebook'} ){
    print "facebook 的网址为 $data{'facebook'} \n";
 }
 else
@@ -2418,7 +2444,54 @@ else
    print "facebook 键不存在\n";
 }
 ```
+## 检测v是否有值
+```
+my %data = qw/a 1 b 2 c 3 d/;
+foreach my $item (sort keys %data){
+	if ($data{$item}){
+		print "$item has $data{$item}\n";
+	}else
+	{
+		print "$item not has v\n";
+	}
+}
+```
 
+## 统计单词数量
+统计数组内的单词
+```
+my %count;
+$count{$_}++ foreach (qw\a b c a c d e a d\);
+while(my ($k, $v) = each %count){
+  say "key: $k, v: $v";
+}
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+key: e, v: 1
+key: c, v: 2
+key: a, v: 3
+key: b, v: 1
+key: d, v: 2
+[huawei@n148 perl]$ 
+```
+加载文件统计，剔除了非单词\W
+```
+my $total;
+my $valid;
+my %count;
+while(<>){
+	foreach (split){
+		$total++;
+		next if /\W/;
+		$valid++;
+		$count{$_}++;
+	}
+}
+say "total: $total, valid: $valid";
+while(my ($k, $v) = each %count){
+  say "key: $k, v: $v";
+}
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl" err.txt
+```
 # 复杂数据结构
 ## 创建
 在需要嵌套数组或hash的时候，应当使用它们的引用
@@ -2599,18 +2672,29 @@ say "expect Array reference" unless $ref_type eq ARRAY;
 # 异常处理
 ## die、warn
 * Perl自带了warn 函数用于触发一个警告信息，不会有其他操作，输出到 STDERR(标准输出文件)，die 函数类似于 warn, 但它会执行退出。
-* 并非所有的错误都会收集到$ !变量中，只有涉及到系统调用且出错时，才会设置$!
+* $ !变量代表errmsg，但并非所有的错误都有$ !，只有涉及到系统调用且出错时才有。
 * die和warn默认会输出程序名称和行号，但如果在错误消息后面加上\n换行符，则不会报告程序名称和行号。
 
 ```
-程序中变量 $! 返回了错误信息
+程序中变量 $! 返回了错误信息，以及带不带\n的差异
 
 if(chdir("/etc1")){
 }else{
    die "Error: 无法打开文件 - $!";
 }
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+Error: 无法打开文件 - No such file or directory at /home/huawei/playground/perl/1.pl line 25.
+[huawei@n148 perl]$
 
+if(chdir("/etc1")){
+}else{
+   die "Error: 无法打开文件 - $!\n";
+}
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+Error: 无法打开文件 - No such file or directory
+[huawei@n148 perl]$ 
 
+--------------------------------------------------------
 chdir("/etc1") || die "Error: 无法打开文件 - $!";
 
 
@@ -2628,6 +2712,7 @@ die "Error: 无法打开目录!: $!" unless(chdir("/etc1"));
 chdir('/etc1') or warn "无法切换目录";
 ```
 
+## auotdie
 ## croak、carp
 Perl自带的die和warn有时候并不友好，它们只会报告代码出错的位置，即哪里使用了die或warn，就报告这个地方有问题。Carp模块提供的croak和carp函数提供了更细致的错误追踪功能，用法分别对应die和warn，区别仅在于它们会展示更具体的错误位置。
 ```
@@ -2662,8 +2747,70 @@ Perl的正则表达式的三种形式，分别是匹配，替换和转化:
 * 匹配：m//
 * 替换：s///
 * 转化：tr///
-  
+	
 这三种形式一般都和 =~ 或 !~ 搭配使用， =~ 表示相匹配，!~ 表示不匹配。
+## 元字符
+‘.’ 与 ‘\’是元字符，默认‘.’不匹配\n（如需匹配使用s见下文），如需在模式中匹配到‘.’或‘\’只要在前面在加上‘\’即可
+## 量词
+* *匹配>=0次
+* .*匹配任意字符串
+* +匹配>=1次
+* ?匹配0或1次
+## 分组与反向引用
+为了避免原内容串中出现\1\2之类的，推荐使用\g{N}表示分组序号，避免歧义
+```
+使用(.)\1匹配连续2个相同字符
+my $_="abba";
+say $& if (/.(.)\1/);
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+abb
+
+
+匹配两个abba
+my $_="yabba dabba doo";
+say $& if (/y(....) d\1/);
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+yabba dabba
+
+
+多个分组
+my $_="yabba dabba doo";
+say $& if (/y(.)(.)\2\1/);
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+yabba
+
+
+分组的嵌套，最外层()是\1
+my $_="yabba dabba doo";
+say $& if (/y((.)(.)\3\2) d\1/);
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+yabba dabba
+
+
+使用\g{N}表示分组序号
+my $_="aa11bb";
+say $& if (/(.)\g{1}11/);
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+aa11
+
+
+可以在\g{N}中使用相对序号，避免每次修改表达式都要改序号值
+my $_="aa11bb";
+say $& if (/(.)\g{-1}11/);
+my $_="xaa11bb";
+say $& if (/(.)(.)\g{-1}11/);
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+aa11
+xaa11
+```
+## 可以使用或 |
+* /k1(|\t)+k2/
+* /k1(+|\t+)k2/
+* /k1(s1|s2)k2/
+## 字符集合与简写形式
+* /[0-9]/之类的方式可能会覆盖不全，建议使用简写\d代表数字
+* \s匹配n个空白
+* 还有很多...
 
 ## 匹配操作
 匹配操作符 m// 用于匹配一个字符串语句或者一个正则表达式。换掉斜线也行 m()，m{}，m!!，m%%，只有使用斜线才可省略m
@@ -3794,13 +3941,66 @@ Thu Dec  2 17:37:09 CST 2021
 kill('signal', (Process List))给一组进程发送信号。signal是发送的数字信号，9为杀掉进程。  
 kill('KILL', 进程号1, 进程号2...);
 # 目录操作
+## 获取当前路径
 ```
 use Cwd;
 $dir = cwd();	# 效果同pwd
 ```
+## 创建与删除
+```
+创建目录
+my $dir='/tmp/test123/';
+mkdir $dir, 0700 or die;
+
+清除目录里的文件后删除目录
+unlink glob "$dir/* $dir/.*";
+rmdir $dir;
+```
+## 进入指定目录
+```
+say cwd();
+chdir '/etc' or die;
+say cwd();
+```
+## 遍历指定目录 glob
+不递归，两句效果一致
+```
+say $_ foreach(glob '/etc/* /etc/.*');
+say $_ foreach(</etc/* /etc/.*>);
+```
+## 遍历指定目录句柄
+不递归
+```
+排除.和..还有pl文件
+opendir DIR, './';
+foreach(readdir DIR)
+{
+	next if $_ eq '.' || $_ eq '..' || $_ =~ /\.pl/;
+	say $_;
+}
+closedir DIR;
+```
+## 递归遍历指定目录
+File::Find::Rule
 # 文件操作
+## 自身文件名
 ```
 say $0			# 全路径自身文件名
+say __FILE__;	# 一样
+```
+## 文件各类检测
+有好多待添加。。。
+### 是否存在
+```
+say -e '/etc/passwd';
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+1
+```
+### 上次修改距今天数
+```
+say -M '/etc/passwd';
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+74.6710532407407
 ```
 ## 读取文件每一行
 将文件作为perl命令行的参数，perl会使用<>去读取这些文件中的内容。
@@ -3815,25 +4015,51 @@ foreach (<>){
 
 [huawei@n148 perl]$ perl 1.pl /etc/passwd
 ```
-# 模块操作
+## 删除文件
+返回删除成功数量
 ```
+unlink '23,';
+unlink qw/aa bb/;
+unlink glob '*.t';
+```
+## 重定名
+```
+rename 'oldfile', 'newfile';
+```
+## chmod、chown
+# 模块操作
+## 安装
+```
+[huawei@n148 perl]$ cpan -a						# 查看已安装模块
 [huawei@n148 perl]$ cpan -i Term::ANSIScreen	# 安装模块
+[huawei@n148 perl]$ preldoc Term::ANSIScreen	# 查看模块说明
+```
+## 导入模块
+```
+use File::Basename;
+```
+## 导入函数
+```
+use File::Basename qw/basename/;
+say File::Basename::basename __FILE__;
+
+还可以不导入函数
+use File::Basename qw//;
 ```
 # 输入与输出
 ## 读取标准输入
+使用一对尖括号格式的< STDIN>来读取来自非文件的标准输入，例如来自管道的数据，来自输入重定向的数据或者来自键盘的输入，< STDIN>读取的输入会自带换行符，所以print输出的时候不要加上额外的换行符。如需去除行尾的换行，使用chomp
 ```
-使用一对尖括号格式的<STDIN>来读取来自非文件的标准输入，例如来自管道的数据，来自输入重定向的数据或者来自键盘的输入，<STDIN>读取的输入会自带换行符，所以print输出的时候不要加上额外的换行符。如需去除行尾的换行，使用chomp
-
-读取一行的方法：
+读取一行：
 my $data=<STDIN>;
 say "$data";
 
-循环读取的方法
+循环读取多行：
 while (defined($_=<STDIN>)){
 	print "I saw $_";
 }
 
-这个方式今能用于命令行，交互时候不好使。。。
+这个方式仅能用于命令行，交互时候不好使。。。
 foreach (<STDIN>){
     say "$_";
 }
@@ -3843,9 +4069,143 @@ aaa\nbbb
 
 [huawei@n148 perl]$ 
 ```
+
+## print
+```
+print 456;
+print "123\n";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+456123
+[huawei@n148 perl]$ 
+```
+## printf
+## sprintf
+## 文件句柄
+```
+```
+## 改变默认句柄 select
+## say
+
+## 写文本文件
+```
+open my $rocks_fh, '>>', 'rocks.txt' or die "could not open rocks.txt: $!";
+foreach my $rock (qw /s l g/){
+	say $rocks_fh $rock;
+}
+print $rocks_fh "end\n";
+close $rocks_fh;
+```
+
 # 命令行
 其实就是一行式。perl命令行加上"-e"选项，就能在perl命令行中直接写perl表达式。如
 ```
 echo "malongshuai" | perl -e '$name=<STDIN>;print $name;'
 强烈建议"-e"后表达式使用单引号包围，而不是双引号。
+```
+# 智能匹配 ~~
+检测某个元素是否在数组中的代码，使用智能匹配
+```
+my $x=2;
+my @array;
+if(@array~~$x)
+{
+print "$x is in the array";
+}
+else
+{
+print "$x is in the array";
+}
+```
+不使用的样子
+```
+my $x=2;
+my @array=(1,2,3);
+my $flag=0;
+for (@array)
+{
+if($x==$_)
+{
+$flag=1;
+}
+}
+
+if($flag == 1){
+print "$x is in the array";
+}
+else
+{
+print "$x is not in the array";
+}
+```
+智能匹配操作的处理方式
+```
+$a      $b        Type of Match Implied    Matching Cod
+======  =====     =====================    =============
+Hash    Hash      hash keys identical      [sort keys %$a]~~[sort keys %$b]
+Hash    Array     hash slice existence     grep {exists $a->{$_}} @$b
+Hash    Regex     hash key grep            grep /$b/, keys %$a
+Hash    Any       hash entry existence     exists $a->{$b}
+Array   Array     arrays are identical[*]
+Array   Regex     array grep               grep /$b/, @$a
+Array   Num       array contains number    grep $_ == $b, @$a
+Array   Any       array contains string    grep $_ eq $b, @$a
+Any     undef     undefined                !defined $a
+Any     Regex     pattern match            $a =~ /$b/
+Code()  Code()    results are equal        $a->() eq $b->()
+Any     Code()    simple closure truth     $b->() # ignoring $a
+Num     numish[!] numeric equality         $a == $b
+Any     Str       string equality          $a eq $b
+Any     Num       numeric equality         $a == $b
+Any     Any       string equality          $a eq $b
+
+~~两边的操作数可以互换，不影响结果
+
+例子				匹配方式
+%a ~~ %b			哈希的键是否一致
+%a ~~ @b			至少 %a 中的一个键在列表@b中
+%a ~~ /Fred/		至少一个键匹配给定的模式
+%a ~~ 'Fred'		哈希中某一指定键$a{Fred}是否存在 $a{Fred}
+@a ~~ @b			数组是否相同
+@a ~~ /Fred/		有一个元素匹配给定的模式
+@a ~~ 123			至少有一个元素转化为数字后是123
+@a ~~ 'Fred'		至少有一个元素转化为字符串后是'Fred'
+$name ~~ undef		$name确实尚未定义
+$name ~~ /Fred/		模式匹配
+123 ~~ '123.0'		数字和字符串是否相等
+'Fred' ~~ 'Fred'	字符串是否相同
+123 ~~ 456			数字是否相等
+
+```
+
+
+检测哈希是否包含k
+```
+my %data = ('google'=>'google.com', 'runoob'=>'runoob.com', 'taobao'=>'taobao.com');
+say 'find' if %data ~~ /oo/;
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+find
+```
+
+# given-when
+如果在default之前的when语句使用了continue，Per就会继续执行default语句
+```
+检测单个
+given( $ARGV[0] ) {
+  when( $_ ~~ /fred/i ) { say 'Name has fred in it'; continue }
+  when( $_ ~~ /^Fred/ ) { say 'Name starts with Fred'; continue }
+  when( $_ ~~ 'Fred' ) { say 'Name is Fred'; break } 
+  default { say "I don't see a Fred" } 
+}
+
+
+多个项目的when匹配
+my @names = ("google", "runoob", "taobao", "fred");
+foreach ( @names ) {
+  say("\nProcessing $_");
+  when( /fred/i ) { say 'Name has fred in it'; continue }
+  when( /^Fred/ ) { say 'Name starts with Fred'; continue }
+  when( 'Fred' )  { say 'Name is Fred'; }
+  say("Moving on to default...");
+  default { say "I don't see a Fred" }
+}
 ```
