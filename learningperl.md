@@ -1410,9 +1410,8 @@ say $str;
 
 ```
 
-## 将字符串分割为数组 split
-使用给定分隔符将字符串划分为列表，分隔符支持使用正则表达式。
-在列表上下文，返回划分后得到的列表，在标量上下文，返回划分后列表的元素数量。
+## 字符串与数组互换 split、join
+使用给定分隔符将字符串划分为列表，分隔符支持使用正则表达式。在列表上下文，返回划分后得到的列表，在标量上下文，返回划分后列表的元素数量。
 ```
 split /PATTERN/,EXPR,LIMIT
 split /PATTERN/,EXPR
@@ -1423,6 +1422,8 @@ split
 * PATTERN：分隔符，默认为空格。
 * EXPR：指定字符串数。
 * LIMIT：如果指定该参数，则返回该数组的元素个数。
+
+my @fields = split; #等效于split /\s+/, $_;	
 ```
 
 ```
@@ -1472,6 +1473,8 @@ my $str = "  a  b    c   ";
 my @arr = split " ", $str;
 say join ",", @arr;   # a,b,c
 
+my $some_input = "This is a \t     test.\n";
+my @args = split /\s+/, $some_input; #得到("This", "is", "a", "test.")
 
 省略pattern时(意味着后面其他参数也被省略)，即不带任何参数的split，默认pattern为空格" "，对$_变量进行划分
 
@@ -1705,7 +1708,7 @@ my @arr[$#arr-3..$#arr];
 ```
 
 数组切片和列表切片在使用上有一些区别：
-* 数组切片可以内插到双引号中，而列表切片不能内插到双引号
+* 数组切片可以内插到字符串中，而列表切片则不能
 * 数组切片可以作为左值，列表切片则不行
 ```
 内插数组切片
@@ -2099,7 +2102,7 @@ print "$string2\n";
 ```
 
 ## grep
-从列表中筛选符合条件的元素，在列表上下文返回符合条件的元素列表，在标量上下文中返回符合条件的元素数量。grep会迭代列表中的每一个元素，并将这些元素逐次【赋值】给默认变量$_，在给定的语句块{BLOCK}中可以使用该默认变量，
+从列表中筛选符合条件的元素，返回列表或count。grep会迭代所有，效率并不高。
 ```
 my @nums = (11,22,33,44,55,66);
 my @odds = grep {$_ % 2} @nums;   # 取奇数
@@ -2117,6 +2120,20 @@ my @nums = (11,22,33,44,55,66);
 my @arr = grep {$_++; $_ % 2} @nums;
 say "@arr";     # 23 45 67
 say "@nums";    # 12 23 34 45 56 67
+
+
+-------------------
+模拟grep的基本功能实现
+
+sub grepfile{
+	my $file=getfullpathfile(shift);
+	my $reg = shift;
+	my $counter=0;
+	open my $FILE, '<', $file or die "Can't open file: $file"; 
+	my $counter = grep /$reg/i, <$FILE>;
+	close $FILE or die "Can't close file: $file"; 
+	$counter;
+}
 ```
 ## map
 map迭代列表的每个元素，并将表达式或语句块中返回的值放进一个列表中，最后返回这个列表。
@@ -2146,6 +2163,30 @@ map允许在一个迭代过程中保存多个元素到返回列表中。
 my @name=qw(ma long shuai);
 my @new_names=map {$_,$_ x 2} @name;
 say "@new_names";  # ma mama long longlong shuai shuaishuai
+
+------------------
+一句话的样式
+print "Some powers of two are:\n", map "\t" . (2 ** $_) . "\n", 0..15;
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+Some powers of two are:
+        1
+        2
+        4
+        8
+        16
+        32
+        64
+        128
+        256
+        512
+        1024
+        2048
+        4096
+        8192
+        16384
+        32768
+[huawei@n148 perl]$ 
 ```
 ## 排序 sort
 sort用于对列表元素进行排序，返回排序后的列表。
@@ -2713,6 +2754,10 @@ chdir('/etc1') or warn "无法切换目录";
 ```
 
 ## auotdie
+导入包后不必每次都or dir那样去写了，大部分io错误都能自动捕获到然后die
+```
+use autodie;
+```
 ## croak、carp
 Perl自带的die和warn有时候并不友好，它们只会报告代码出错的位置，即哪里使用了die或warn，就报告这个地方有问题。Carp模块提供的croak和carp函数提供了更细致的错误追踪功能，用法分别对应die和warn，区别仅在于它们会展示更具体的错误位置。
 ```
@@ -2742,6 +2787,13 @@ if ($ok){
   ...
 }
 ```
+总共有4种类型的错误是eval无法捕获的：为了安全不要在程序里用eval，只有在相当关注安全时才应该使用eval。
+* 第一种：是出现在源代码中的语法错误，比如没有匹配的引号，忘写分* 号，漏写操作符，或者非法的正则表达式等。
+* 第二种：是让perl解释器本身崩溃的错误，比如内存溢出或者受到无法接* 管的信号。
+* 第三种：是eval无法捕获的错误是警告，不管是由用户发出的(通过warn函* 数)，还是perl自己内部发出的(通过打开-W这个命令行选项，或者使用* use warning编译指令。要让eval捕获警告专门的一套机制，请参考perl文* 档中_WARN_伪信号相关的内容)
+* 第四种：是exit操作符会立即终止程序运行，就算从eval块内部的子程序* 来调用它
+## Try::Tiny
+提供了try、catch、finally的语法
 # 正则
 Perl的正则表达式的三种形式，分别是匹配，替换和转化:
 * 匹配：m//
@@ -2750,12 +2802,18 @@ Perl的正则表达式的三种形式，分别是匹配，替换和转化:
 	
 这三种形式一般都和 =~ 或 !~ 搭配使用， =~ 表示相匹配，!~ 表示不匹配。
 ## 元字符
+元字符前面加上反斜线，元字符就失去了它原有的属性。  
 ‘.’ 与 ‘\’是元字符，默认‘.’不匹配\n（如需匹配使用s见下文），如需在模式中匹配到‘.’或‘\’只要在前面在加上‘\’即可
 ## 量词
 * *匹配>=0次
 * .*匹配任意字符串
 * +匹配>=1次
 * ?匹配0或1次
+* ()对字符串分组
+* /(fred)+/	匹配连续>=1个fred的字符串
+* /a{5, 15}/匹配a 5到15次
+* /(fred){3,}/匹配fred 3到无限次
+* /\w{8}/匹配w 8次
 ## 分组与反向引用
 为了避免原内容串中出现\1\2之类的，推荐使用\g{N}表示分组序号，避免歧义
 ```
@@ -2810,15 +2868,28 @@ xaa11
 ## 字符集合与简写形式
 * /[0-9]/之类的方式可能会覆盖不全，建议使用简写\d代表数字
 * \s匹配n个空白
+* [a-zA-Z] [^adg] 匹配其中的一个，或除其中的一个
+* \h	匹配水平空白符
+* \v	匹配垂直空白符	\h+\v = \p{Space}
+* \R	匹配任意一种断行符，如\r\n还是\n
+* \w	匹配任意字符0-9a-zA-Z,下划线也是的
 * 还有很多...
+
+反义简写:
+* [^\d] = [\D]
+* [^\w] = [\W]
+* [^\s] = [\S]
+* [\d\D]	匹配任意字符，包括换行
+* [^\d\D]	什么都不匹配
+
 
 ## 匹配操作
 匹配操作符 m// 用于匹配一个字符串语句或者一个正则表达式。换掉斜线也行 m()，m{}，m!!，m%%，只有使用斜线才可省略m
-
+### 绑定操作符=~
+默认情况下模式匹配的操作对象是 $ _ ，绑定操作符告诉perl，拿右边的模式来匹配左边的字符串，而不是匹配$_
 * 使用data =~ m/reg/，可以明确指定要对data对应的内容进行正则匹配
 * 直接/reg/，因为省略了参数，所以使用默认参数变量，它等价于 $_ =~ m/reg/，也就是对 $_保存的内容进行正则匹配
 * 返回真假
-
 ### 匹配给定字符串内容
 ```
 $bar = "I am runoob site. welcome to runoob site.";
@@ -2839,6 +2910,12 @@ if ($bar =~ /run/){
 
 第一次匹配
 第二次匹配
+
+
+----------------------------
+$_ = "Hello there, neighbor!";
+my($first, $second, $third) = /(\S+) (\S+) (\S+)/;
+print "$second is my $third\n";
 ```
 ### 匹配来自管道的内容
 ```
@@ -2873,109 +2950,6 @@ s	单行模式，"."匹配"\n"（默认不匹配）
 x	忽略模式中的空白
 g	全局匹配
 cg	全局匹配失败后，允许再次查找匹配串
-```
-
-## 正则特殊变量变量
-下面是正则表达式相关的特殊变量总结
-```
-$1 $2 $3...
-保存了各个分组捕获的内容
-
-$`: 匹配部分的前一部分字符串
-$&: 匹配的字符串
-$': 还没有匹配的剩余字符串
-
-演示：
-my $str = "abAB12cdCD34";
-say "$`： $& ： $'" if($str =~ /\d+/);		abAB： 12 ： cdCD34
-
-
-
-$string = "welcome to runoob site.";
-$string =~ m/run/;
-print "匹配前的字符串: $`\n";
-print "匹配的字符串: $&\n";
-print "匹配后的字符串: $'\n";
-
-执行以上程序输出结果为：
-匹配前的字符串: welcome to 
-匹配的字符串: run
-匹配后的字符串: oob site.
-```
-
-这些特殊变量是只读的，每次正则匹配时Perl会自动重置这些变量。这些变量只在当前作用域内有效，并且只在本次正则匹配后、下次正则匹配前有效。如下面的第二次say就失败了
-```
-my $str = "abbc123";
-$str=~/a(.*)c/;
-say $1;
-$str=~/a.*c/;
-say $1;   # undef
-```
-还有几个比较常用的特殊变量是：
-```
-$+
-最后一个匹配成功的分组括号所匹配的内容(PAREN是括号parentheses的缩写)
-
-%+
-保存本次匹配过程中所有命名分组捕获的内容，hash的key是分组名称，value是分组捕获的内容
-
-@-
-保存了各个分组匹配的起始位置
-
-@+
-保存了各个分组匹配的结束位置
-
-
-@- @+这两个变量结合substr用起来可以非常强大，通过它们可以构造出和$` $& $'等价的值，且能构造出更多匹配结果。例如：
-$` == substr($var, 0, $-[0])
-$& == substr($var, $-[0], $+[0] - $-[0])
-$' == substr($var, $+[0])
-$1 == substr($var, $-[1], $+[1] - $-[1])
-$2 == substr($var, $-[2], $+[2] - $-[2])
-$3 == substr($var, $-[3], $+[3] - $-[3])
-```
-
-## 替换操作
-替换操作符 s/// 是匹配操作符的扩展，使用新的字符串替换指定的字符串
-```
- 
-$string = "welcome to google site.";
-$string =~ s/google/runoob/;
- 
-print "$string\n";
-
-执行以上程序输出结果为：
-
-welcome to runoob site.
-```
-替换操作修饰符如下表所示：
-```
-修饰符	描述
-i	如果在修饰符中加上"i"，则正则将会取消大小写敏感性，即"a"和"A" 是一样的。
-m	默认的正则开始"^"和结束"$"只是对于正则字符串如果在修饰符中加上"m"，那么开始和结束将会指字符串的每一行：每一行的开头就是"^"，结尾就是"$"。
-o	表达式只执行一次。
-s	如果在修饰符中加入"s"，那么默认的"."代表除了换行符以外的任何字符将会变成任意字符，也就是包括换行符！
-x	如果加上该修饰符，表达式中的空白字符将会被忽略，除非它已经被转义。
-g	替换所有匹配的字符串。
-e	替换字符串作为表达式
-```
-
-## 转化操作
-```
-使用 /s 将变量 $string 重复的字符删除：
-$string = 'runoob';
-$string =~ tr/a-z/a-z/s;
-print "$string\n";
-
-执行以上程序输出结果为：
-runob
-```
-转化操作符相关的修饰符：
-```
-修饰符	描述
-c	转化所有未指定字符
-d	删除所有指定字符
-s	把多个相同的输出字符缩成一个
 ```
 ## 模式匹配修饰符
 perl总共支持以下几种修饰符，这些修饰符可以连用，连用时顺序可随意
@@ -3258,8 +3232,14 @@ say "===match end===";
 ab
 c
 ===match end===
+
+-----------------------------------
+$_ = "I'm much better \nthan Barney is \nat bowling, \nWilma.\n";
+print "Found 'wilma' at start of line\n" if /^wilma\b/im;
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+Found 'wilma' at start of line
 ```
-### “.”可以匹配换行 s
+### “.”能匹配任意 s
 默认情况下"."是不能匹配换行符\n的，开启了s修饰符功能后，可以让"."匹配换行符。案例见多行匹配模式
 
 ### 忽略空白 x
@@ -3317,19 +3297,252 @@ perl允许我们定义只在一定范围内生效的修饰符，方式是(?imsx:
 * /(?i:hello (?-i:world) gaoxiao)FANG/   和前面的类似，但是将"FANG"放到了括号外，意味着这部分要区分大小写。所以匹配失败
 
 ## 反斜线序列
-### 锚定类
+### 字符解释方式
+* /\w+/a	#仅仅是A-Z、a-z、0-9、_这些字符
+* /\w+/u	#任何Unicode当中定义为单词的字符
+* /\w+/l	#类同于ACSII的版本，但单词字符的定义取决于本地化设定
+			#所以如果设定为Latin-9的话
+### 锚位
 所谓锚定，是指它匹配的是位置，而非字符，比如锚定行首的意思是匹配第一个字母前的空字符。也就是很多人说的"零宽断言(zero-width assertions)"。
 
-    \b：匹配单词边界处的空字符
-    \B：匹配非单词边界处的空字符
+    \b：只匹配以\w开头或结尾，只匹配字符[0-9a-zA-Z]	
+		/\bhunt/:匹配hunt hunting hunter,而不匹配shunt
+		/stone\b/：匹配standstone flintstone但不包括capstones
+    \B：非单词边界锚位是\B,它能匹配所有\B不能匹配的位置
+		/\bsearch\B/会匹配searches、searching与searched，但不匹配search或researching
     \<：匹配单词开头处的空字符
     \>：匹配单词结尾处的空字
-    \A：匹配绝对行首，换句话说，就是输入内容的开头
-    \z：匹配绝对行尾，换句话说，就是输入内容的绝对尾部
-    \Z：匹配绝对行尾或绝对行尾换行符前的位置，换句话说，就是输入内容的尾部
+    \A：匹配字符串的绝对开头
+		m{\Ahttps?://}i		#判断字符串是否以https开头
+    \z：匹配字符串的绝对末尾，\z后面再没其它东西
+		m{\.png\z}i			#匹配以.png结尾的字符串	
+    \Z：行末锚位，它允许后面出现换行符
+		while(<STDIN>)
+		{ print if /\.png\Z/ };
+		
+		/\A\s*\Z/：匹配一个空行
     \G：强制从位移指针处进行匹配，详细内容见g和c修饰符以及\G
 ```
+匹配单行最好用，\A,\z
 ```
+## 捕获
+### 捕获变量
+$ 1、$ 2、$ 3...保存了各个分组捕获的内容，使用（）进行捕获，$n代表第n个（）捕获到的内容
+
+```
+
+$_="hello there, neighbor";
+if (/(\S+) (\S+), (\S+)/){
+	say "$1, $2, $3";
+}
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+hello, there, neighbor
+```
+### 命名捕获
+即使用具名的符号代替$1,$2之类的变量
+```
+my $names = 'fred or Barray';
+if($names =~ m/(?<name1>\w+) (and|or) (?<name2>\w+)/){
+	say "1 I saw $+{name1} and $+{name2}";
+}
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+1 I saw fred and Barray
+
+---------------
+
+my $names = "Fred Filnstone and wilma Filnstone";
+if($names =~ m/(?<last_name>\w+) and \w+ \g{last_name}/){
+	say "2 I saw $+{last_name}"
+};
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+2 I saw filntstone
+```
+### 自动捕获变量
+```
+$`: 匹配部分的前一部分字符串
+$&: 匹配的字符串
+$': 还没有匹配的剩余字符串
+
+演示：
+my $str = "abAB12cdCD34";
+say "$`： $& ： $'" if($str =~ /\d+/);		abAB： 12 ： cdCD34
+
+
+
+$string = "welcome to runoob site.";
+$string =~ m/run/;
+print "匹配前的字符串: $`\n";
+print "匹配的字符串: $&\n";
+print "匹配后的字符串: $'\n";
+
+执行以上程序输出结果为：
+匹配前的字符串: welcome to 
+匹配的字符串: run
+匹配后的字符串: oob site.
+```
+
+### 生存期
+这些特殊变量是只读的，每次正则匹配时Perl会自动重置这些变量。这些变量只在当前作用域内有效，并且只在本次正则匹配后、下次正则匹配前有效。如下面的第二次say就失败了
+```
+my $str = "abbc123";
+$str=~/a(.*)c/;
+say $1;
+$str=~/a.*c/;
+say $1;   # undef
+```
+### 常用特殊变量
+```
+$+
+最后一个匹配成功的分组括号所匹配的内容(PAREN是括号parentheses的缩写)
+
+%+
+保存本次匹配过程中所有命名分组捕获的内容，hash的key是分组名称，value是分组捕获的内容
+
+@-
+保存了各个分组匹配的起始位置
+
+@+
+保存了各个分组匹配的结束位置
+
+
+@- @+这两个变量结合substr用起来可以非常强大，通过它们可以构造出和$` $& $'等价的值，且能构造出更多匹配结果。例如：
+$` == substr($var, 0, $-[0])
+$& == substr($var, $-[0], $+[0] - $-[0])
+$' == substr($var, $+[0])
+$1 == substr($var, $-[1], $+[1] - $-[1])
+$2 == substr($var, $-[2], $+[2] - $-[2])
+$3 == substr($var, $-[3], $+[3] - $-[3])
+```
+### 捕获到列表
+如果模式匹配成功，那么返回的是所有捕获变量的列表；如果匹配失败，则会返回空列表
+```
+my $str = "Hello there, neighbor!";
+my($first, $second, $third) = ($str =~ /(\S+) (\S+) (\S+)/);
+print "$second is my $third\n";
+
+用等号，默认匹配的是$_。可以简写为先这样，但注意捕获那句仅是“=”
+$_ = "Hello there, neighbor!";
+my($first, $second, $third) = /(\S+) (\S+) (\S+)/;
+print "$second is my $third\n";
+
+
+------------------------------
+my $text = "Fred dropped a 5 ton granite block on Mr.Slate";
+my @words = ($text =~ /([a-z]+)/ig);
+$,=',';
+say @words;
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+Fred,dropped,a,ton,granite,block,on,Mr,Slate
+```
+### 捕获到哈希
+```
+my $data = "Barney Rubble Fred Flintstone Wilma Fllintstone";
+my %last_name = ($data =~ /(\w+)\s+(\w+)/g);
+while(my ($k, $v) = each %last_name){
+  say "key: $k, v: $v";
+}
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+key: Wilma, v: Fllintstone
+key: Barney, v: Rubble
+key: Fred, v: Flintstone
+```
+
+## 替换操作
+替换操作符 s/// 是匹配操作符的扩展，使用新的字符串替换指定的字符串
+```
+$string = "welcome to google site.";
+$string =~ s/google/runoob/;
+ 
+print "$string\n";
+
+执行以上程序输出结果为：
+
+welcome to runoob site.
+--------------------------------------
+$_ = "green scaly dinosaur";
+s/(\w+) (\w+)/$2, $1/; #替换后为"scaly, green dinosaur"
+s/^/huge, /; #替换后为"huge, scaly, green dinosaur"，即在上一个结果前插入字符串
+s/,.*een//; #空替换：此时为"huge dinosaur"，即把“,”到“een”之间的删掉
+s/green/red/; #匹配失败：仍为"huge dinosaur"
+s/\w+$/($`!)$&/;	#替换为huge (huge !)dinosaur
+s/\s+(!\W+)/$1 /; #替换为"huge (huge!) dinosaur"
+s/huge/gigantic/; #替换为"gigantic (huge!) dinosaur"
+```
+替换操作修饰符如下表所示：
+```
+修饰符	描述
+i	如果在修饰符中加上"i"，则正则将会取消大小写敏感性，即"a"和"A" 是一样的。
+m	默认的正则开始"^"和结束"$"只是对于正则字符串如果在修饰符中加上"m"，那么开始和结束将会指字符串的每一行：每一行的开头就是"^"，结尾就是"$"。
+o	表达式只执行一次。
+s	如果在修饰符中加入"s"，那么默认的"."代表除了换行符以外的任何字符将会变成任意字符，也就是包括换行符！
+x	如果加上该修饰符，表达式中的空白字符将会被忽略，除非它已经被转义。
+g	替换所有匹配的字符串。
+e	替换字符串作为表达式
+```
+### 全局替换 /g
+```
+$_ = "home, sweet home!";
+s/home/cave/g;
+print "$_\n"; #打印"cave, sweet cave"
+
+```
+### 替换空白
+```
+一个常见的全局替换是缩减空白，也就是将任何连续的空白转换成单一空格：
+$_ = "Input data\t may have    extra whitespace";
+s/\s+/ /g; #现在它变成了"Input data may have extra whitespace."
+say $_;
+
+s/^\s+//; #将开头的空白替换成空字符串
+s/\s+$//; #将结尾的空白替换成空字符串
+s/^\s+|\s+$//g; #去除开头和结尾的空白符，但运行可能会慢，由于perl的引擎问题
+```
+### 无损替换
+如果需要同时保留原始字符串和替换后的字符串则可以这样
+```
+my $original = 'Fred ate 1 rib';
+
+方法1，最原始
+# my $copy = $original;
+# $copy =~ s/\d+ ribs?/10 ribs/;
+方法2，合成为一句
+# (my $copy = $original) =~ s/\d+ ribs?/10 ribs/;
+方法3，新写法
+my $copy = $original =~ s/\d+ ribs?/10 ribs/r; #先做替换，再复制
+
+say $copy;
+say $original;
+```
+### 大小写切换
+* \U:	使目标变为大写
+* \L:	使目标变为小写
+* \E: 关闭大小写转换，不然会影响后面的字符
+```
+$_ = "I saw Barney with Fred.";
+
+
+s/(fred|barney)/\U$1/gi; 				#$_现在成了"I saw BARNEY with FRED."
+s/(fred|barney)/\L$1/gi; 				#$_现在成了"I saw barney with fred."
+s/(\w+) with (\w+)/\U$2\E with $1/i; 	#$_现在成了"I saw FRED with barney"
+```
+## 转化操作
+```
+使用 /s 将变量 $string 重复的字符删除：
+$string = 'runoob';
+$string =~ tr/a-z/a-z/s;
+print "$string\n";
+
+执行以上程序输出结果为：
+runob
+```
+转化操作符相关的修饰符：
+```
+修饰符	描述
+c	转化所有未指定字符
+d	删除所有指定字符
+s	把多个相同的输出字符缩成一个
+```
+
 # 子程序
 
 ## 简单定义与调用
@@ -3861,10 +4074,19 @@ foreach(1..10){
 * 特殊变量 $$ 或 $PROCESS_ID 来获取进程 ID。
 * %ENV 哈希存放了父进程，也就是shell中的环境变量，在Perl中可以修改这些变量。
 ## 反引号运算符
-使用反引号运算符可以很容易的执行 Unix 命令。你可以在反引号中插入一些简单的命令。命令执行后将返回结果：
+如果不需要获取命令的输出就不用使用反引号。也可使用qx()、qx\\...这类方式
 ```
-@files = `ls -l`;
-foreach $file (@files){
+foreach (`cat /etc/passwd`){
+	my @lst=split /:/, $_;
+   	say $lst[0], "\t", $lst[5];
+}
+
+
+
+----------------------------------
+my @files = `ls -l`;
+my @files = qx(ls -l);
+foreach my $file (@files){
    print $file;
 }
 
@@ -3878,7 +4100,7 @@ total 12
 -rw-rw-r-- 1 huawei huawei  13 Dec  2 16:56 tempCodeRunnerFile.pl
 ```
 ## system
-可以使用 system() 函数执行 Unix 命令, 执行该命令将直接输出结果。默认情况下会送到目前Perl的STDOUT指向的地方，一般是屏幕。你也可以使用重定向运算符 > 输出到指定文件
+默认情况下输出到STDOUT指向的地方，也可以使用重定向运算符 > 输出到指定文件。返回0则正常。会创建子进程执行命令，父进程等待子进程完毕再继续
 ```
 $PDDATA = "我是 Perl 的变量";
 system('echo $PDDATA');  # $PATH 作为 shell 环境变量
@@ -3890,8 +4112,8 @@ system("echo \$PDDATA"); # 转义 $
 我是 Perl 的变量
 /home/huawei/pgdata/new
 ```
-## fork
-fork() 函数用于创建一个新进程。在父进程中返回子进程的PID，在子进程中返回0。如果发生错误（比如，内存不足）返回undef，并将$!设为对应的错误信息。fork 可以和 exec 配合使用。exec 函数执行完引号中的命令后进程即结束。
+## fork与exec
+fork() 函数用于创建一个新进程。在父进程中返回子进程的PID，在子进程中返回0。如果发生错误（比如，内存不足）返回undef，并将$!设为对应的错误信息。fork 可以和 exec 配合使用。exec 函数执行完引号中的命令后进程即结束（不会创建子进程）。
 ```
 if(!defined($pid = fork())) {
    # fork 发生错误返回 undef
@@ -3912,6 +4134,17 @@ if(!defined($pid = fork())) {
 通过子进程输出
 Thu Dec  2 17:34:35 CST 2021
 完成的进程ID: 34217
+
+------------------------------------
+这个更精练
+defined(my $pid = fork) or die "Cannot fork:$!";
+unless($pid)
+{
+	#能运行到这里的是子进程
+	exec 'date';
+	die "Cannot exec date:$!";
+}
+waitpid($pid, 0); #能运行到这里的是父进程
 ```
 使用发CHLD的信号，待细致研究
 ```
@@ -3937,7 +4170,10 @@ if(!defined($pid = fork())) {
 Thu Dec  2 17:37:09 CST 2021
 完成的进程ID: -1
 ```
-## Kill
+## IPC::System::Simple
+system、systemx、capture、capturex
+## 通过文件句柄执行外部进程
+## 发送及接收信号 Kill
 kill('signal', (Process List))给一组进程发送信号。signal是发送的数字信号，9为杀掉进程。  
 kill('KILL', 进程号1, 进程号2...);
 # 目录操作
@@ -3951,6 +4187,11 @@ $dir = cwd();	# 效果同pwd
 创建目录
 my $dir='/tmp/test123/';
 mkdir $dir, 0700 or die;
+---------------
+my $temp_directory = "/tmp/ATL3Perl.$$";
+mkdir $temp_directory, 0700 or die "Cannot create $temp_directory: $!";
+
+
 
 清除目录里的文件后删除目录
 unlink glob "$dir/* $dir/.*";
@@ -4002,7 +4243,7 @@ say -M '/etc/passwd';
 [huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
 74.6710532407407
 ```
-## 读取文件每一行
+## 读取文件
 将文件作为perl命令行的参数，perl会使用<>去读取这些文件中的内容。
 ```
 由于<>和<STDIN>读取文件、读取标准输入的时候总是自带换行符，很多时候这个自带的换行符都会带来格式问题。所以，有必要在每次读取数据时将行尾的换行符去掉，使用chomp即可
@@ -4014,6 +4255,17 @@ foreach (<>){
 }
 
 [huawei@n148 perl]$ perl 1.pl /etc/passwd
+
+
+-------------------
+
+将整个文件读进一个变量，然后把文件名作为每一行的前缀进行替换
+
+my $filename="err.txt";
+open FILE, $filename or die "Can't open '$filename':$|";
+my $lines = join ' ', <FILE>;
+$lines =~ s/^/$filename: /gm;
+say $lines;
 ```
 ## 删除文件
 返回删除成功数量
@@ -4102,6 +4354,7 @@ close $rocks_fh;
 echo "malongshuai" | perl -e '$name=<STDIN>;print $name;'
 强烈建议"-e"后表达式使用单引号包围，而不是双引号。
 ```
+可以在pl代码中使用@ARGV获取命令行参数内容
 # 智能匹配 ~~
 检测某个元素是否在数组中的代码，使用智能匹配
 ```
@@ -4209,3 +4462,4 @@ foreach ( @names ) {
   default { say "I don't see a Fred" }
 }
 ```
+# List::Util模块
