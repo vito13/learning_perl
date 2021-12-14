@@ -517,7 +517,7 @@ say \%h;     # HASH(0x55ad7fa99150)
 my $n = 'junma';
 my $n_ref = \$n;
 ```
-n_ref是一个标量变量，它保存变量n的引用，或者说，n_ref保存了变量n所指向字符串数据"junma"的内存地址。
+n_ref是一个标量变量，它保存变量n的引用，或者说，n_ref保存了变量n所指向字符串数据"junma"的内存地址。  
 ![](https://perl-book.junmajinlong.com/imgs/2021-01-25_19-55-59.png)
 
 ```
@@ -545,7 +545,8 @@ a
 junma
 junma
 ```
-## 赋值
+## 赋值与比较
+比较时候就跟普通标量一样使用==即可
 ```
 my $name = "junma";
 my $name1 = \$name;
@@ -604,33 +605,12 @@ r 的引用类型 : HASH
 ```
 ## 解引用
 根据引用获取其指向的原始数据。
-* 引用的是一个标量，解引用时加上sigil前缀$
-* 引用的是一个数组，解引用时加上sigil前缀@
-* 引用的是一个哈希，解引用时加上sigil前缀%
+* 引用的是一个标量，解引用时加上$
+* 引用的是一个数组，解引用时加上@
+* 引用的是一个哈希，解引用时加上%
+
 
 ```
-$var = 10;
-# $r 引用 $var 标量
-$r = \$var;
-# 输出本地存储的 $r 的变量值
-print "$var 为 : ", $$r, "\n";
-@var = (1, 2, 3);
-# $r 引用  @var 数组
-$r = \@var;
-# 输出本地存储的 $r 的变量值
-print "@var 为: ",  @$r, "\n";
-%var = ('key1' => 10, 'key2' => 20);
-# $r 引用  %var 哈希
-$r = \%var;
-# 输出本地存储的 $r 的变量值
-print "\%var 为 : ", %$r, "\n";
-
-执行以上实例执行结果为：
-10 为 : 10
-1 2 3 为: 123
-\%var 为 : key110key220
-
------------------------
 普通方式
 $name  ->  $$name_ref
 @arr   ->  @$arr_ref
@@ -641,6 +621,27 @@ $name  ->  $$name_ref
 ${name}  ->  ${$name_ref}
 @{arr}   ->  @{$arr_ref}
 %{hash}  ->  %{$hash_ref}
+
+-----------------------
+$var = 10;
+$r = \$var;							# 引用标量
+print "$var 为 : ", $$r, "\n";		# 输出本地存储的 $r 的变量值
+
+
+@var = (1, 2, 3);
+$r = \@var;							# 引用数组
+print "@var 为: ",  @$r, "\n";		# 输出本地存储的 $r 的变量值
+
+
+%var = ('key1' => 10, 'key2' => 20);# 引用哈希
+$r = \%var;
+print "\%var 为 : ", %$r, "\n";		# 输出本地存储的 $r 的变量值
+
+
+执行以上实例执行结果为：
+10 为 : 10
+1 2 3 为: 123
+\%var 为 : key110key220
 ```
 对于数组或hash
 ```
@@ -2102,7 +2103,7 @@ print "$string2\n";
 ```
 
 ## grep
-从列表中筛选符合条件的元素，返回列表或count。grep会迭代所有，效率并不高。
+从列表中筛选符合条件的元素，返回列表（结果赋值给@）或count（结果赋值给$）。grep会迭代所有，效率并不高。
 ```
 my @nums = (11,22,33,44,55,66);
 my @odds = grep {$_ % 2} @nums;   # 取奇数
@@ -2134,9 +2135,43 @@ sub grepfile{
 	close $FILE or die "Can't close file: $file"; 
 	$counter;
 }
+
+-------------------
+正则过滤出结尾4的数字
+
+$, = "; ";
+my @arr=grep /4$/, (1..100);
+say @arr;
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+4; 14; 24; 34; 44; 54; 64; 74; 84; 94
+
+-------------------
+回调形式
+
+sub fun{
+	my $v=shift;
+	return $v if $v =~ /4$/;
+}
+
+$, = "; ";
+my @arr=grep fun($_), (1..100);
+say @arr;
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+4; 14; 24; 34; 44; 54; 64; 74; 84; 94
+
+-------------------
+匿名函数形式
+
+$, = "; ";
+my @arr=grep {
+	$_ if ($_ =~ /4$/);
+} (1..100);
+say @arr;
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+4; 14; 24; 34; 44; 54; 64; 74; 84; 94
 ```
 ## map
-map迭代列表的每个元素，并将表达式或语句块中返回的值放进一个列表中，最后返回这个列表。
+map迭代列表的每个元素，并将表达式或语句块中返回的值放进一个列表中，最后返回这个列表。也可生成哈希。也是使用函数或匿名函数作为参数（见grep案例）
 ```
 my @chars = map(chr, (65..70));
 say "@chars";  # A B C D E F
@@ -2151,10 +2186,10 @@ say "@arr";  # 2 4 6 8 10
 
 如果语句块中返回空列表()，相当于没有向返回列表中追加元素。例如：
 my @arr = (11,22,33,44,55);
-#@evens = (undef,22,undef,44,undef)
+# @evens = (undef,22,undef,44,undef)
 my @evens = map {$_ if $_%2==0} @arr;
 
-#@evens = (22,44)
+# @evens = (22,44)
 my @evens = map {$_%2==0 ? $_ : ()} @arr;
 #等价于 map {$_} grep {$_%2==0} @arr;
 
@@ -2187,6 +2222,19 @@ Some powers of two are:
         16384
         32768
 [huawei@n148 perl]$ 
+
+------------------
+生成到哈希里
+
+my @name=qw(ma long shuai);
+my %new_names=map {$_,$_ x 2} @name;
+while(my ($k, $v) = each %new_names){
+  say "key: $k, v: $v";
+}
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+key: shuai, v: shuaishuai
+key: ma, v: mama
+key: long, v: longlong
 ```
 ## 排序 sort
 sort用于对列表元素进行排序，返回排序后的列表。
@@ -3664,7 +3712,25 @@ Average(10, 20, 30);
 第一个参数值为 : 10
 传入参数的平均值为 : 20
 ```
+## shift弹出参数
+使用shift来弹出参数列表中的第一个，shell里也有类似功能
+```
+在子程序内部，下面两个操作是等价的：
+shift @_;
+shift;
 
+
+$,=',';
+sub max{
+	my $maxval=shift;
+	foreach(@_)
+	{
+		$maxval=$_ if $_>$maxval;
+	}
+	$maxval;
+}
+say max(1, 123, '45aaa', 2);
+```
 ## 传递列表参数
 ```
 由于 @_ 变量是一个数组，所以它可以向子程序中传递列表。但如果我们需要传入标量和数组参数时，需要把列表放在最后一个参数上
@@ -3683,9 +3749,29 @@ PrintList($a, @b);
 以上程序将标量和数组合并了，输出结果为：
 列表为 : 10 1 2 3 4
 
+-------------------------------
 
-可以向子程序传入多个数组和哈希，但是在传入多个数组和哈希时，会导致丢失独立的标识。所以我们需要使用引用（下一章节会介绍）来传递
+案例：检查在a列表里的每个元素是否在b列表里。典型的传值方式，参数的数据量小还是可以的，本例在“传递引用与匿名对象”中有完善
+
+sub check{
+	my $who=shift;
+	my %whoitems=map{$_,1}@_;
+	my @required=qw/a b c d/;
+	for my $item(@required){
+		unless ($whoitems{$item}){
+			print "$who is missing $item\n";
+		}
+	}
+}
+check('tom', qw/a c e f/);
+check('dick', qw/b d g h/);
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+tom is missing b
+tom is missing d
+dick is missing a
+dick is missing c
 ```
+可以向子程序传入多个数组和哈希，但是在传入多个数组和哈希时，会导致丢失独立的标识。所以我们需要使用引用（下一章节会介绍）来传递
 ## 传递哈希参数
 ```
 传递哈希表时，它将复制到 @_ 中，哈希表将被展开为键/值组合的列表。
@@ -3725,25 +3811,7 @@ subname(
 );
 ```
 
-## shift弹出参数
-使用shift来弹出参数列表中的第一个，shell里也有类似功能
-```
-在子程序内部，下面两个操作是等价的：
-shift @_;
-shift;
 
-
-$,=',';
-sub max{
-	my $maxval=shift;
-	foreach(@_)
-	{
-		$maxval=$_ if $_>$maxval;
-	}
-	$maxval;
-}
-say max(1, 123, '45aaa', 2);
-```
 ## 传递引用与匿名对象
 
 传递数组或hash，建议的方式是传递它们的引用。也可以传递匿名数组、匿名hash，它们本质上仍然是引用。
@@ -3768,6 +3836,56 @@ sub subname{
 }
 
 subname([qw(a b c)], {name=>'junma', age=>23}, 3333);
+----------------------------------
+
+传递数组的引用
+
+sub check{
+	my $who=shift;
+	my $items=shift;
+	my %whoitems=map{$_,1} @{$items};
+	my @required=qw/a b c d/;
+	for my $item(@required){
+		unless ($whoitems{$item}){
+			print "$who is missing $item\n";
+		}
+	}
+}
+
+上面的精简版：
+sub check{
+	my %whoitems=map{$_,1} @{$_[1]};
+	my @required=qw/a b c d/;
+	for my $item(@required){
+		unless ($whoitems{$item}){
+			print "$_[0] is missing $item\n";
+		}
+	}
+}
+
+使用grep 2个数组，省略了哈希。上面的再次精简版：
+sub check{
+	my $who=shift;
+	my $items=shift;
+	my @required=qw/a b c d/;
+	for my $item(@required){
+		unless (grep $item eq $_, @$items){
+			print "$who is missing $item\n";
+		}
+	}
+}
+
+my @s=qw/a c e f/;
+check('tom', \@s);
+@s=qw/b d g h/;
+check('dick', \@s);
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+tom is missing b
+tom is missing d
+dick is missing a
+dick is missing c
+
 ```
 调用子程序时传递的参数，放入@_中的都是原始数据的别名引用：修改@_各元素的值，也将影响原始数据。即里面改了外面也变了
 ```
@@ -4141,8 +4259,7 @@ defined(my $pid = fork) or die "Cannot fork:$!";
 unless($pid)
 {
 	#能运行到这里的是子进程
-	exec 'date';
-	die "Cannot exec date:$!";
+	exec 'date' or die "Cannot exec date:$!";
 }
 waitpid($pid, 0); #能运行到这里的是父进程
 ```
@@ -4266,6 +4383,7 @@ open FILE, $filename or die "Can't open '$filename':$|";
 my $lines = join ' ', <FILE>;
 $lines =~ s/^/$filename: /gm;
 say $lines;
+close FILE
 ```
 ## 删除文件
 返回删除成功数量
@@ -4281,6 +4399,7 @@ rename 'oldfile', 'newfile';
 ## chmod、chown
 # 模块操作
 ## 安装
+其实也可以手动安装，也就是下载解压编译安装...待完善
 ```
 [huawei@n148 perl]$ cpan -a						# 查看已安装模块
 [huawei@n148 perl]$ cpan -i Term::ANSIScreen	# 安装模块
@@ -4297,6 +4416,26 @@ say File::Basename::basename __FILE__;
 
 还可以不导入函数
 use File::Basename qw//;
+```
+## 查看文档
+```
+[huawei@n148 perl]$ perldoc File::Basename
+```
+## File::Basename
+```
+只取文件名 my $filename_only = basename($filename);
+取路径部分 my $path_only = dirname($filename); 
+
+my ($base, $path, $suffix) = File::Basename::fileparse( __FILE__); 
+say "$base, $path, $suffix";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+1.pl, /home/huawei/playground/perl/, 
+
+第二个参数可以用于正则过滤
+my ($base, $path, $suffix) = File::Basename::fileparse( __FILE__, qr{.pl}); 
+say "$base, $path, $suffix";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+1, /home/huawei/playground/perl/, .pl
 ```
 # 输入与输出
 ## 读取标准输入
