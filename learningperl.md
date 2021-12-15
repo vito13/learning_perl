@@ -486,83 +486,28 @@ while(my ($k, $v) = each %ENV){
 }
 ```
 # 引用
-引用就是指针，Perl 引用是一个标量类型可以指向变量、数组、哈希表甚至子程序，可以应用在程序的任何地方。
-## 创建引用
-```
-在一个变量前加一个'\'号，你就得到了这个变量的'引用'。通过引用查看变量所保存数据的内存地址
-
-
-my $name = "junmajinlong";
-say \$name;    # SCALAR(0x55f80476d588)
-```
-除了下面几种，还有其他类型的引用，比如子程序的引用，文件句柄的引用等
-```
-$name    ->   \$name   # 标量变量的引用
-@array   ->   \@array  # 数组变量的引用
-%hash    ->   \%hash   # hash变量的引用
-"abc"    ->   \"abc"   # 字面数据值的引用
-```
-无论是何种类型的引用，它们都是一种指针，指针中保存了其指向数据的内存地址。打印输出引用时，不同类型的引用，输出结果有所不同：
-```
-my $name = "junma";
-my @arr = qw(a b c);
-my %h = ( name => "junma", age  => 23 );
-
-say \$name;  # SCALAR(0x55ad7f974dc8)
-say \@arr;   # ARRAY(0x55ad7f974738)
-say \%h;     # HASH(0x55ad7fa99150)
-```
-引用是一种指针，因此引用是一种标量数据（数组的引用、hash的引用，也都是标量数据）。
-```
-my $n = 'junma';
-my $n_ref = \$n;
-```
+* 引用类似C语言的指针，是指向一个内存空间的地址
+* 引用是一个标量类型，可以指向变量、数组、哈希甚至子程序，可以应用在程序的任何地方。  
+* 在一个变量前加' \ '，就得到了这个变量的'引用'。  
+* 可以通过引用查看变量所保存数据的内存地址与具体数据。  
+* 根据引用获取其指向的原始数据叫解引用。解引用和定义引用的数据符号一致
+* 比较引用时候就跟普通标量一样使用“==”即可
+## 变量的引用
+my $n = 'junma';  
+my $n_ref = \$n;  
 n_ref是一个标量变量，它保存变量n的引用，或者说，n_ref保存了变量n所指向字符串数据"junma"的内存地址。  
 ![](https://perl-book.junmajinlong.com/imgs/2021-01-25_19-55-59.png)
-
 ```
-# 数组变量名和数组引用：名称arr可被替换为$arr_ref
-my @arr = qw(a b c);
-my $arr_ref = \@arr;
+my $value = 10;
+my $pointer = \$value;
+print "Pointer Address $pointer of $value \n";
+print "What Pointer *($pointer) points to $$pointer\n"; # 这里有打印地址与解引用
 
-say $arr[0];        # 或${arr}[0]
-say $$arr_ref[0];   # 或${$arr}[0]
-
-# hash变量名和hash引用：名称hash可被替换为$h_ref
-my %hash = (
-  name => "junma",
-  age => 23,
-);
-my $h_ref = \%hash;
-
-say $hash{name};      # 或${hash}{name};
-say $$h_ref{name};    # 或${$h_ref}{name}
-
-打印出
 [huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
-a
-a
-junma
-junma
+Pointer Address SCALAR(0x110b8f8) of 10 
+What Pointer *(SCALAR(0x110b8f8)) points to 10
 ```
-## 赋值与比较
-比较时候就跟普通标量一样使用==即可
-```
-my $name = "junma";
-my $name1 = \$name;
-$name = "junmajinlong";
-say $$name1;   # junmajinlong
-创建了指针name1执行了name，然后name的内容变量，打印$$肯定也变了
-```
-```
-my $name = "junma";
-my $name1 = \$name;
-#name1不再是引用变量，而是字符串变量，此句相当于将name1在堆上内容由原来的地址直接改为了字符串
-$name1 = "junmajinlong";  
-say $name1;   # junmajinlong
-say $name;    # junma
-```
-和一些语法糖
+## 语法糖
 ```
 # 将字面量的引用赋值给变量
 my $name = \"junmajinlong";  
@@ -576,6 +521,91 @@ say $age_ref;
 my $age1_ref = \(my $age1 = 33);
 say $$age1_ref;    # 33
 ```
+## 数组的引用
+```
+my @names =(77,88,99);
+my $address = \@names;
+print "$#names\t$address\n";	# 打印出最大索引与数组地址
+print "@names\t@{$address}\n";	# 打印数组内容
+print "$$address[1] # 通过引用来访问具体数据，第一种方式最简单
+${$address}[1]
+@$address[1]
+@{$address}[1]
+$address->[1]\n";	
+
+sub listem{
+   	my ($list) = shift;
+   	print "$list\t@$list\n";	# 打印出地址（和外面的实参地址一致）与数组内容
+	print "$$list[1]  # 解引用打印元素值，与上面的方式类似
+${$list}[1]
+@$list[1]
+@{$list}[1]
+$list->[1]\n";
+}
+listem($address);
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+2       ARRAY(0x1be3928)
+77 88 99        77 88 99
+88 # 通过引用来访问具体数据，第一种方式最简单
+88
+88
+88
+88
+ARRAY(0x1be3928)        77 88 99
+88  # 解引用打印元素值，与上面的方式类似
+88
+88
+88
+88
+```
+
+## 哈希的引用
+```
+my %names=('key1' => 10, 'key2' => 20, 'key3' => 30);
+my $address = \%names;
+print $address, "\n"; # 打印地址 
+print %$address, "\t", %names, "\n"; # 打印哈希内容，但都连一起了
+print "$$address{key1}	
+${$address}{key1}
+$address->{key1}
+";	# 通过引用来访问具体数据，第一种方式最简单
+
+sub listem{
+   	my ($hash) = shift;
+   	print "$hash\n";	# 打印出地址（和外面的实参地址一致）
+  	print "$$hash{key1}	
+${$hash}{key1}
+$hash->{key1}
+";  # 解引用打印元素值，与上面的方式类似
+}
+listem($address);
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+HASH(0x18b68f8)
+key220key110key330      key220key110key330
+10
+10
+10
+HASH(0x18b68f8)
+10
+10
+10
+```
+## 复杂结构的引用
+当数组中嵌套数组或hash，hash中嵌套数组或hash时，优先使用瘦箭头解引用的方式来取元素，这样整个取值过程更清晰。
+```
+# $ref_Config是一个hash引用，取得其中的urllist值
+# urllist值是一个数组，取得第二个元素，该元素仍为数组，
+# 再取得第四个元素，依然是数组，最后取得第二个元素
+say ${$ref_Config}{urllist}[1][3][1];
+say ${${${$ref_Config}{urllist}[1]}[3]}[1];
+say $ref_Config->{urllist}->[1]->[3]->[1];
+
+并且，连续多个瘦箭头时，从第二个瘦箭头开始可以省略瘦箭头。例如上面最后一种写法可简写为：
+say $ref_Config->{urllist}[1][3][1];
+```
+
 ## 查询引用类型 ref
 返回值列表如下，如果没有以下的值返回 false
 * SCALAR
@@ -603,87 +633,8 @@ r 的引用类型 : SCALAR
 r 的引用类型 : ARRAY
 r 的引用类型 : HASH
 ```
-## 解引用
-根据引用获取其指向的原始数据。
-* 引用的是一个标量，解引用时加上$
-* 引用的是一个数组，解引用时加上@
-* 引用的是一个哈希，解引用时加上%
 
 
-```
-普通方式
-$name  ->  $$name_ref
-@arr   ->  @$arr_ref
-%hash  ->  %$hash_ref
-
-
-完全限定语法
-${name}  ->  ${$name_ref}
-@{arr}   ->  @{$arr_ref}
-%{hash}  ->  %{$hash_ref}
-
------------------------
-$var = 10;
-$r = \$var;							# 引用标量
-print "$var 为 : ", $$r, "\n";		# 输出本地存储的 $r 的变量值
-
-
-@var = (1, 2, 3);
-$r = \@var;							# 引用数组
-print "@var 为: ",  @$r, "\n";		# 输出本地存储的 $r 的变量值
-
-
-%var = ('key1' => 10, 'key2' => 20);# 引用哈希
-$r = \%var;
-print "\%var 为 : ", %$r, "\n";		# 输出本地存储的 $r 的变量值
-
-
-执行以上实例执行结果为：
-10 为 : 10
-1 2 3 为: 123
-\%var 为 : key110key220
-```
-对于数组或hash
-```
-取数组或hash的单个元素：
-$arr[0]        ->   $$arr_ref[0]
-${arr}[0]      ->   ${$arr_ref}[0]
-$hash{name}    ->   $$hash_ref{name}
-${hash}{name}  ->   ${$hash_ref}{name}
-
-
-my @name=qw(junma jinlong);
-my $ref_name=\@name;
-say "@{ $ref_name }";
-say "@$ref_name";
-say "$$ref_name[0]";
-say "${$ref_name}[0]";
-```
-也可使用->方式。
-```
-my @names = qw(junma jinlong);
-my $ref_names = \@names;
-say $ref_names->[0];   # 等价于${$ref_names}[0]
-
-my %hash=(
-    name => "junmajinlong",
-    age  => 23,
-);
-my $ref_hash =\%hash;
-say $ref_hash->{name};  # 等价于${$ref_hash}{name}
-```
-当数组中嵌套数组或hash，hash中嵌套数组或hash时，优先使用瘦箭头解引用的方式来取元素，这样整个取值过程更清晰。
-```
-# $ref_Config是一个hash引用，取得其中的urllist值
-# urllist值是一个数组，取得第二个元素，该元素仍为数组，
-# 再取得第四个元素，依然是数组，最后取得第二个元素
-say ${$ref_Config}{urllist}[1][3][1];
-say ${${${$ref_Config}{urllist}[1]}[3]}[1];
-say $ref_Config->{urllist}->[1]->[3]->[1];
-
-并且，连续多个瘦箭头时，从第二个瘦箭头开始可以省略瘦箭头。例如上面最后一种写法可简写为：
-say $ref_Config->{urllist}[1][3][1];
-```
 ## 函数的引用
 函数引用格式: \&  
 调用引用函数格式: & + 创建的引用名。
@@ -1655,6 +1606,26 @@ the items are :
         33
         44
 [huawei@n148 perl]$ 
+
+------------------------------------
+
+
+use Data::Dumper;
+my @arr = (11, 22, 33);
+my $address = \@arr;
+print Dumper($address);
+print Dumper(\@arr);
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+$VAR1 = [
+          11,
+          22,
+          33
+        ];
+$VAR1 = [
+          11,
+          22,
+          33
+        ];
 ```
 ## 转标量（得length）
 数组转换为标量得到的是数组的长度
@@ -1987,6 +1958,34 @@ sub find{
 	-1;
 }
 say find(3, qw/1 2 3 4 5/);
+```
+## 二维数组
+使用引用方式才是正确姿势，见下案例
+```
+my @array1=("a1","b1","c1","d1");
+my @array2=("a2","b2","c2","d2");
+my @array3=("a3","b3","c3","d3");
+my @array_2d=(@array1,@array2,@array3);	# 将三个数组连起来，还是一维的
+print "@array_2d";	# 打印出地址
+print "\n";
+print "$array_2d[1]\t$array_2d[7]";	# 打印元素具体值，貌似仅能按照一维方式，二维方式见下面
+print "\n";
+##二维数组的正确使用方式##############
+@array_2d=(\@array1,\@array2,\@array3);	# 对array_2d重新赋值，3个元素分别是地址
+print "@array_2d";	# 打印数组内容。因为存的是地址，所以打印出3个地址
+print "\n";
+print "$array_2d[1]";	# 打印元素值，值是个地址
+print "\n";
+print "$array_2d[0][1]\t$array_2d[1][3]";	# 访问二维数组元素的正确姿势
+print "\n";
+
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+a1 b1 c1 d1 a2 b2 c2 d2 a3 b3 c3 d3
+b1      d2
+ARRAY(0xba48f8) ARRAY(0xba48b0) ARRAY(0x11d65d0)
+ARRAY(0xba48b0)
+b1      d2
 ```
 # 列表
 * 是标量的有序集合，列表指的是数据
@@ -2492,6 +2491,26 @@ else{
 $size = @keys;
 print "1 - 哈希大小: $size\n";
 ```
+## 打印
+```
+use Data::Dumper;
+my %names=('key1' => 10, 'key2' => 20, 'key3' => 30);
+my $address = \%names;
+print Dumper($address);
+print Dumper(\%names);
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+$VAR1 = {
+          'key2' => 20,
+          'key1' => 10,
+          'key3' => 30
+        };
+$VAR1 = {
+          'key2' => 20,
+          'key1' => 10,
+          'key3' => 30
+        };
+```
 ## 遍历与each
 ```
 my %h = qw(k1 v1 k2 v2 k3 v3);
@@ -2545,6 +2564,22 @@ foreach my $item (sort keys %data){
 	}
 }
 ```
+## 匿名哈希
+```
+一个数组里有2个元素，每个元素是个哈希的引用
+
+my $ref_data1 = {'google', 'google.com', 'runoob', 'runoob.com', 'taobao', 'taobao.com'};
+my $ref_data2 = {k1=>'v1', k2=>'v2', k3=>'v3'};
+print Dumper($ref_data1);
+print Dumper($ref_data2);
+my @arr={$ref_data1, $ref_data2};
+
+下面才是一步到位的姿势
+my @arr={
+	{'google', 'google.com', 'runoob', 'runoob.com', 'taobao', 'taobao.com'},
+	{k1=>'v1', k2=>'v2', k3=>'v3'},
+};
+```
 
 ## 统计单词数量
 统计数组内的单词
@@ -2562,7 +2597,7 @@ key: b, v: 1
 key: d, v: 2
 [huawei@n148 perl]$ 
 ```
-加载文件统计，剔除了非单词\W
+## 加载文件统计，剔除了非单词\W
 ```
 my $total;
 my $valid;
@@ -2580,6 +2615,46 @@ while(my ($k, $v) = each %count){
   say "key: $k, v: $v";
 }
 [huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl" err.txt
+```
+## 案例：文件转目录
+mulu.txt 文件内容类似这样
+```
+第1章 简介 1
+	1．1 背景知识 2
+	1．2 strict和warnings 2
+	1．3 Perl v5．14 3
+	1．4 关于这些脚注 4
+	1．5 关于后续的练习 4
+	1．6 获取帮助的方式 5
+	1．7 如果是一个Perl课程讲师 5
+	1．8 练习 6
+第2章 使用模块 7
+	2．1 标准发行版 7
+	2．2 探讨CPAN 8
+	2．3 使用模块 9
+	2．4 功能接口 10
+	2．5 面向对象的接口 11
+```
+读文件转哈希，k是一级标题，v是数组（当前一级下的所有二级标题）
+```
+use Data::Dumper;
+
+my $bigtitle;
+my %contents;
+while(<>){
+	if(/^(\S.*)/){	# 判断是1级标题
+		$bigtitle=$1;
+		$contents{$bigtitle}=[] unless $contents{$bigtitle}; # 如不存在此k则创建k，v是匿名数组，准确的说是执行空数组的引用，其实这句也可以不要，perl会自动创建出来。。。
+	}elsif(/^\s+(\S.*)/){	# 是二级标题
+		die unless defined $bigtitle;	# k不在则die
+		push @{$contents{$bigtitle}},$1; # 将二级标题插入到对应的v（是个数组）里
+	}else{
+		die;
+	}
+}
+print Dumper(\%contents);
+
+[huawei@n148 perl]$ perl 1.pl mulu.txt
 ```
 # 复杂数据结构
 ## 创建
