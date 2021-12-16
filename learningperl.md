@@ -636,31 +636,179 @@ r 的引用类型 : HASH
 
 
 ## 函数的引用
-函数引用格式: \&  
-调用引用函数格式: & + 创建的引用名。
+
+### 简单的使用
 ```
-# 函数定义
 sub PrintHash{
-   my (%hash) = @_;
-   
-   foreach $item (%hash){
-      print "元素 : $item\n";
-   }
+   my $refhash = shift;
+   print Dumper($refhash);
 }
-%hash = ('name' => 'runoob', 'age' => 3);
- 
-# 创建函数的引用
-$cref = \&PrintHash;
- 
-# 使用引用调用函数
-&$cref(%hash);
+my %hash = ('name' => 'runoob', 'age' => 3);
+PrintHash(\%hash);
 
-执行以上实例执行结果为：
+my $cref = \&PrintHash;	# 取函数地址
+&{$cref}(\%hash);		# 3种调用函数
+&$cref(\%hash);
+$cref->(\%hash);
 
-元素 : age
-元素 : 3
-元素 : name
-元素 : runoob
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+$VAR1 = {
+          'name' => 'runoob',
+          'age' => 3
+        };
+$VAR1 = {
+          'name' => 'runoob',
+          'age' => 3
+        };
+$VAR1 = {
+          'name' => 'runoob',
+          'age' => 3
+        };
+$VAR1 = {
+          'name' => 'runoob',
+          'age' => 3
+        };
+```
+函数指针放到数组里循环调用
+```
+sub PrintHash{
+   print Dumper(shift);
+}
+sub PrintHash2{
+   print Dumper(shift);
+}
+my %hash = ('name' => 'runoob', 'age' => 3);
+for my $pfun (\&PrintHash, \&PrintHash2){
+	$pfun->(\%hash);	# 类似上面的案例3种效果一样
+	&$pfun(\%hash);
+	&{$pfun}(\%hash);
+}
+```
+函数指针放到哈希里循环调用
+```
+sub PrintHash{
+   print Dumper(shift);
+}
+sub PrintHash2{
+   print Dumper(shift);
+}
+
+my %hash = (pfun1=>\&PrintHash, pfun2=>\&PrintHash2);
+for my $pf (qw\pfun1 pfun2\){
+	$hash{$pf}->('sss');
+}
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+$VAR1 = 'sss';
+$VAR1 = 'sss';
+```
+互相打招呼，2层循环，从hash里取元素对应的函数指针进行调用，参数也是个函数指针，会自动转为字符串
+```
+sub fun1{
+   print "this is fun1, param is", shift, "\n";
+}
+sub fun2{
+   print "this is fun2, param is", shift, "\n";
+}
+sub fun3{
+   print "this is fun3, param is", shift, "\n";
+}
+my %hash = (pfun1=>\&fun1, pfun2=>\&fun2, pfun3=>\&fun3);
+my @arr=sort keys %hash;
+
+for my $k1 (@arr){
+	for my $k2 (@arr){
+		$hash{$k1}->($k2) unless $k1 eq $k2;
+	}
+}
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+this is fun1, param ispfun2
+this is fun1, param ispfun3
+this is fun2, param ispfun1
+this is fun2, param ispfun3
+this is fun3, param ispfun1
+this is fun3, param ispfun2
+```
+### 指向匿名函数
+```
+my %hash = (
+	pfun1=>sub{print "this is fun1, param is", shift, "\n";}, 
+	pfun2=>sub{print "this is fun2, param is", shift, "\n";}, 
+	pfun3=>sub{print "this is fun3, param is", shift, "\n";},
+);
+my @arr=sort keys %hash;
+
+for my $k1 (@arr){
+	for my $k2 (@arr){
+		$hash{$k1}->($k2) unless $k1 eq $k2;
+	}
+}
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+this is fun1, param ispfun2
+this is fun1, param ispfun3
+this is fun2, param ispfun1
+this is fun2, param ispfun3
+this is fun3, param ispfun1
+this is fun3, param ispfun2
+```
+### 指向（匿名）回调方式
+递归遍历文件夹
+```
+use File::Find;
+my @dir=qw/./;
+sub fun{
+	print "$File::Find::name found\n";
+}
+find(\&fun,@dir);
+
+
+与上面的结果一样，但更现代语言一些
+find(sub{
+	print "$File::Find::name found\n";
+},@dir);
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+. found
+./.vstags found
+./junmajinlong, found
+./tempCodeRunnerFile.pl found
+./1.pl found
+./2.pl found
+./err.txt.bak found
+./fred found
+./rocks.txt found
+./logf found
+./mulu.txt found
+./ok.txt found
+./err.txt found
+./5, found
+./.vscode found
+./.vscode/launch.json found
+./123 found
+./a found
+./a/c found
+./a/b found
+./a/b/1 found
+./a/b/aa found
+./a/b/c found
+```
+## 闭包
+### 简单应用
+```
+sub how_many {       # 定义函数
+    my $count=2;     # 词法变量$count
+    return sub {print ++$count,"\n"};  # 返回一个匿名函数，这是一个匿名闭包
+}
+
+my $ref=how_many();    # 将闭包赋值给变量$ref
+
+how_many()->();     # (1)调用匿名闭包：输出3
+how_many()->();     # (2)调用匿名闭包：输出3
+$ref->();           # (3)调用命名闭包：输出3
+$ref->();           # (4)再次调用命名闭包：输出4
+
 ```
 # 流程控制
 
@@ -2102,29 +2250,69 @@ print "$string2\n";
 ```
 
 ## grep
-从列表中筛选符合条件的元素，返回列表（结果赋值给@）或count（结果赋值给$）。grep会迭代所有，效率并不高。
+从列表中筛选符合条件的元素，返回列表（结果赋值给数组）或count（结果赋值给标量）。grep会迭代所有，效率并不高。{}里条件为t则将本次迭代的元素放进返回值列表中。
 ```
 my @nums = (11,22,33,44,55,66);
 my @odds = grep {$_ % 2} @nums;   # 取奇数
 my @evens = grep {$_ % 2 == 0} @nums;  # 取偶数
-say "@odds";
-say "@evens";
+print Dumper(\@odds);
+print Dumper(\@evens);
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+$VAR1 = [
+          11,
+          33,
+          55
+        ];
+$VAR1 = [
+          22,
+          44,
+          66
+        ];
+```
+当条件只有一条语句或一个表达式时可以去除{}
+```
+换一种迭代方式 0..$#arr
 
-当BLOCK中的代码评估结果为布尔真，则将本次迭代的元素放进返回值列表中等待被返回。当BLOCK中只有一条语句或一个表达式时可以去除{}
-grep $_ % 2, @nums;
-grep $_ % 2 == 0, @nums;
+my @arr = (1..10);
+my @arr2=grep 0==$arr[$_]>5, 0..$#arr;
+print Dumper(\@arr2);
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+$VAR1 = [
+          0,
+          1,
+          2,
+          3,
+          4
+        ];
+```
+精简版的奇数与偶数
+```
+print Dumper([grep $_ % 2, (11,22,33,44,55,66)]);
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+$VAR1 = [
+          11,
+          33,
+          55
+        ];
 
-
-grep在迭代列表各元素时，$_是各元素的别名引用，在代码块中修改$_，也将影响到源列表，也因此会影响返回值列表。
+print Dumper([grep $_ % 2 == 0, (11,22,33,44,55,66)]);
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+$VAR1 = [
+          22,
+          44,
+          66
+        ];
+```
+grep在迭代列表各元素时，$ _ 是各元素的别名引用，在代码块中修改$_，也将影响到源列表，也因此会影响返回值列表。
+```
 my @nums = (11,22,33,44,55,66);
 my @arr = grep {$_++; $_ % 2} @nums;
 say "@arr";     # 23 45 67
 say "@nums";    # 12 23 34 45 56 67
 
-
--------------------
+```
 模拟grep的基本功能实现
-
+```
 sub grepfile{
 	my $file=getfullpathfile(shift);
 	my $reg = shift;
@@ -2134,19 +2322,17 @@ sub grepfile{
 	close $FILE or die "Can't close file: $file"; 
 	$counter;
 }
-
--------------------
+```
 正则过滤出结尾4的数字
-
+```
 $, = "; ";
 my @arr=grep /4$/, (1..100);
 say @arr;
 [huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
 4; 14; 24; 34; 44; 54; 64; 74; 84; 94
-
--------------------
+```
 回调形式
-
+```
 sub fun{
 	my $v=shift;
 	return $v if $v =~ /4$/;
@@ -2157,10 +2343,9 @@ my @arr=grep fun($_), (1..100);
 say @arr;
 [huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
 4; 14; 24; 34; 44; 54; 64; 74; 84; 94
-
--------------------
+```
 匿名函数形式
-
+```
 $, = "; ";
 my @arr=grep {
 	$_ if ($_ =~ /4$/);
@@ -2169,37 +2354,92 @@ say @arr;
 [huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
 4; 14; 24; 34; 44; 54; 64; 74; 84; 94
 ```
+查找指定元素都在哪些数组里
+```
+my %h=(
+	'k1'=>[qw/a b c d e/],
+	'k2'=>[qw/a c e f h/],
+	'k3'=>[qw/a b d g x/],
+);
+my @all=grep{
+	my @items=@{$h{$_}};
+	grep $_ eq 'b', @items;
+}keys %h;
+print Dumper(\@all);
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+$VAR1 = [
+          'k1',
+          'k3'
+        ];
+```
 ## map
 map迭代列表的每个元素，并将表达式或语句块中返回的值放进一个列表中，最后返回这个列表。也可生成哈希。也是使用函数或匿名函数作为参数（见grep案例）
 ```
 my @chars = map(chr, (65..70));
 say "@chars";  # A B C D E F
+my @chars = map($_, (65..70));
+say "@chars";	# 65 66 67 68 69 70
 
 my @arr = map { $_ * 2 } (1..5);
 say "@arr";  # 2 4 6 8 10
+```
+也可以使用{}进行判断过滤
+```
+过滤出数字多于1位的
 
+my @buildnums = ('R010','T230','W11','F56','dd1');
+my @nums = map{/(\d{2,})/} @buildnums;
+foreach my $num (@nums){
+  print "$num \n"
+}
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+010 
+230 
+11 
+56 
+
+
+过滤出数字大于45的
+
+my @nums = (11,22,33,44,55,66);
+my @numbers = map { $_ > 45 ? $_ : ()} @nums;
+print Dumper(\@numbers);
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+$VAR1 = [
+          55,
+          66
+        ];
+
+```
 当语句块中只有一条语句时，可使用表达式写法。
+```
 my @arr = map $_*2, (1..5);
 say "@arr";  # 2 4 6 8 10
-
-
-如果语句块中返回空列表()，相当于没有向返回列表中追加元素。例如：
+```
+这是个错误的使用方法，会返回undef的内容
+```
 my @arr = (11,22,33,44,55);
-# @evens = (undef,22,undef,44,undef)
 my @evens = map {$_ if $_%2==0} @arr;
+print Dumper(\@evens);
 
-# @evens = (22,44)
-my @evens = map {$_%2==0 ? $_ : ()} @arr;
-#等价于 map {$_} grep {$_%2==0} @arr;
-
-
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+$VAR1 = [
+          '',
+          22,
+          '',
+          44,
+          ''
+        ];
+```
 map允许在一个迭代过程中保存多个元素到返回列表中。
+```
 my @name=qw(ma long shuai);
 my @new_names=map {$_,$_ x 2} @name;
 say "@new_names";  # ma mama long longlong shuai shuaishuai
-
-------------------
+```
 一句话的样式
+```
 print "Some powers of two are:\n", map "\t" . (2 ** $_) . "\n", 0..15;
 
 [huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
@@ -2221,10 +2461,9 @@ Some powers of two are:
         16384
         32768
 [huawei@n148 perl]$ 
-
-------------------
+```
 生成到哈希里
-
+```
 my @name=qw(ma long shuai);
 my %new_names=map {$_,$_ x 2} @name;
 while(my ($k, $v) = each %new_names){
@@ -2234,6 +2473,85 @@ while(my ($k, $v) = each %new_names){
 key: shuai, v: shuaishuai
 key: ma, v: mama
 key: long, v: longlong
+```
+数组内的每个元素都生成一对kv
+```
+my %h=(
+	'k1'=>[qw/a b c d e/],
+	'k2'=>[qw/a c e f h/],
+	'k3'=>[qw/a b d g x/],
+);
+
+my @pairs=map{
+	my $k=$_;
+	my @items=@{$h{$k}};
+	map[$k=>$_], @items;
+}keys %h;
+print Dumper(\@pairs);
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+$VAR1 = [
+          [
+            'k2',
+            'a'
+          ],
+          [
+            'k2',
+            'c'
+          ],
+          [
+            'k2',
+            'e'
+          ],
+          [
+            'k2',
+            'f'
+          ],
+          [
+            'k2',
+            'h'
+          ],
+          [
+            'k1',
+            'a'
+          ],
+          [
+            'k1',
+            'b'
+          ],
+          [
+            'k1',
+            'c'
+          ],
+          [
+            'k1',
+            'd'
+          ],
+          [
+            'k1',
+            'e'
+          ],
+          [
+            'k3',
+            'a'
+          ],
+          [
+            'k3',
+            'b'
+          ],
+          [
+            'k3',
+            'd'
+          ],
+          [
+            'k3',
+            'g'
+          ],
+          [
+            'k3',
+            'x'
+          ]
+        ];
 ```
 ## 排序 sort
 sort用于对列表元素进行排序，返回排序后的列表。
@@ -4569,6 +4887,15 @@ echo "malongshuai" | perl -e '$name=<STDIN>;print $name;'
 强烈建议"-e"后表达式使用单引号包围，而不是双引号。
 ```
 可以在pl代码中使用@ARGV获取命令行参数内容
+
+
+http://blog.sina.com.cn/s/blog_494bf2bf0100lidf.html
+
+https://blog.csdn.net/lw370481/article/details/17392679
+
+https://blog.csdn.net/alivio/article/details/6898254?spm=1001.2101.3001.6650.7&utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7EOPENSEARCH%7Edefault-7.opensearchhbase&depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7EOPENSEARCH%7Edefault-7.opensearchhbase
+
+https://www.cnblogs.com/air-of-code/p/5990436.html
 # 智能匹配 ~~
 检测某个元素是否在数组中的代码，使用智能匹配
 ```
