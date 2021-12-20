@@ -17,7 +17,7 @@ my %hash = (one=>1, two=>2, three=>3,);
 ## Sigil
 是变量名的前缀，包括$、@、%，在Perl中称为Sigil。作用是区分类型。
 ## 标量 $
-可以是数字或字符串，计算结果也是标量
+标量是一种变量，只能保存单个值、单个字符串或单个数字，计算结果也是标量
 ```
 $age = 25;             # 整型
 $name = "runoob";      # 字符串
@@ -28,7 +28,7 @@ print "Name = $name\n";
 print "Salary = $salary\n";
 ```
 ## 数组 @
-数组是用于存储一个有序的标量值的变量，索引从 0 开始。
+数组是一组有序排列的标量，索引从 0 开始。
 ```
 @ages = (25, 30, 40);             
 @names = ("google", "runoob", "taobao");
@@ -69,6 +69,7 @@ print "名字数为 : $size\n";
 ```
 print "文件名 ". __FILE__ . "\n";
 print "行号 " . __LINE__ ."\n";
+__END__;	# 表示脚本的逻辑终止位置，告诉 Perl 忽略其后出现的一切字符。
 print "包名 " . __PACKAGE__ ."\n";
 ```
 ## 按值拷贝
@@ -2002,7 +2003,7 @@ while(my ($idx, $v) = each @h){
   say "idx: $idx, v: $v";
 }
 ```
-## 替换数组元素 splice
+## 移除替换指定元素 splice
 语法
 ```
 splice ARRAY
@@ -2070,8 +2071,8 @@ use 5.010;
 say "original arr: @arr";   # 输出：perl py java c php shell ruby
 say "new arr: @new_arr";    # 输出：空
 ```
-## 排序
-见列表sort
+## 排序 sort
+数组内建支持。案例见列表sort
 ## 合并
 要扩展数组，Perl中的逻辑是将数组放进小括号中，这会将数组转变成列表格式，然后在列表上扩展更多元素。也可以在数组中嵌入多个数组
 ```
@@ -2554,7 +2555,7 @@ $VAR1 = [
         ];
 ```
 ## 排序 sort
-sort用于对列表元素进行排序，返回排序后的列表。
+sort用于对列表元素进行排序，返回排序后的列表。算法是可以自定义的，下面的案例里$a<=>$b这样的逻辑可以继续扩展（具体见perl进阶第10章）
 ```
 my @str=qw(abc Abc ABc 123);
 my @sorted=sort @str;
@@ -4569,7 +4570,7 @@ Perl 语言中定义了一些特殊的变量，通常以 $, @, 或 % 作为前�
 很多特殊的变量有一个很长的英文名，操作系统变量 $! 可以写为 $OS_ERROR。
 如果你想使用英文名的特殊变量需要在程序头部添加 use English;。这样就可以使用具有描述性的英文特殊变量。
 ```
-https://www.runoob.com/perl/perl-special-variables.html
+
 ## 默认参数变量 $_
 对于需要参数的函数或表达式，但却没有给参数，这是将会使用perl的默认参数变量$_
 ```
@@ -4579,6 +4580,65 @@ print ;
 foreach(1..10){
 	print $_;
 }
+```
+## 所有变量
+变量对应的名称见 https://www.runoob.com/perl/perl-special-variables.html
+```
+$0 含有正在执行的程序名
+$! 获取当前错误信息值，常用于 die 命令
+$” 列表分隔符
+$# 打印数字时默认的数字输出格式
+$$ 正在执行本脚本的 Perl 进程号
+$% 当前输出通道的当前页号
+$& 与上个格式匹配的字符串
+$( 当前进程的组ID$) 当前进程的有效组ID
+$* 设置1表示处理多行格式.现在多以/s和/m修饰符取代之.
+$, 当前输出字段分隔符
+$. 文件中最后处理的当前行号
+$/ 当前输入记录分隔符,默认情况是新行
+$: 字符设置,此后的字符串将被分开,以填充连续的字段.
+$; 在仿真多维数组时使用的分隔符.
+$? 返回上一个外部命令的状态
+$@ 由最近一个 eval() 运算符提供的 Perl 语法报错信息
+$[ 数组中第一个元素的索引号
+$\ 当前输出记录的分隔符
+$] Perl解释器的子版本号
+$^ 当前通道最上面的页面输出格式名字
+$^A 打印前用于保存格式化数据的变量
+$^D 调试标志的值
+$^E 在非UNIX环境中的操作系统扩展错误信息
+$^F 最大的文件捆述符数值
+$^H 由编译器激活的语法检查状态
+$^I 内置控制编辑器的值
+$^L 发送到输出通道的走纸换页符
+$^M 备用内存池的大小
+$^O 操作系统名
+$^P 指定当前调试值的内部变量
+$^R 正则表达式块的上次求值结果
+$^S 当前解释器状态
+$^T 从新世纪开始算起,脚步本以秒计算的开始运行的时间
+$^W 警告开关的当前值
+$^X Perl二进制可执行代码的名字
+$^V Perl 解释器的版本、子版本和修订版本信息，同$PERL_VERSION
+$_ 在执行输入和模式搜索操作时使用的默认空格变量
+$| 控制对当前选择的输出文件句柄的缓冲
+$~ 当前报告格式的名字
+$` 在上个格式匹配信息前的字符串
+$’ 在上个格式匹配信息后的字符串
+$+ 与上个正则表达式搜索格式匹配的最后一个括号
+$< 当前执行解释器的用户的真实ID
+$ 含有与上个匹配正则表达式对应括号结果
+$= 当前页面可打印行的数目
+$> 当前进程的有效用户ID包含正在执行的脚本的文件名
+$ARGV 从默认的文件句柄中读取时的当前文件名
+ARGV 一个特殊的文件句柄，用于遍历 @ ARGV 中出现的所有文件名
+%ENV 环境变量列表
+%INC 库文件的搜索路径
+%SIG 信号列表及其处理方式
+@_ 在子例程中@_含有传给该子例程的参数列表
+@ARGV 传给脚本的命令行参数列表
+@INC 在导入模块时需要搜索的目录列表
+$-[0]和$+[0] 代表当前匹配的正则表达式在被匹配的字符串中的起始和终止的位置 
 ```
 
 # 进程管理
@@ -4753,31 +4813,7 @@ say -M '/etc/passwd';
 [huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
 74.6710532407407
 ```
-## 读取文件
-将文件作为perl命令行的参数，perl会使用<>去读取这些文件中的内容。
-```
-由于<>和<STDIN>读取文件、读取标准输入的时候总是自带换行符，很多时候这个自带的换行符都会带来格式问题。所以，有必要在每次读取数据时将行尾的换行符去掉，使用chomp即可
 
-脚本内容：
-foreach (<>){
-    chomp;
-    say "$_";
-}
-
-[huawei@n148 perl]$ perl 1.pl /etc/passwd
-
-
--------------------
-
-将整个文件读进一个变量，然后把文件名作为每一行的前缀进行替换
-
-my $filename="err.txt";
-open FILE, $filename or die "Can't open '$filename':$|";
-my $lines = join ' ', <FILE>;
-$lines =~ s/^/$filename: /gm;
-say $lines;
-close FILE
-```
 ## 删除文件
 返回删除成功数量
 ```
@@ -4789,7 +4825,8 @@ unlink glob '*.t';
 ```
 rename 'oldfile', 'newfile';
 ```
-## chmod、chown
+## pack 和 unpack 函数
+用于二进制文件
 # 模块操作
 ## 安装
 其实也可以手动安装，也就是下载解压编译安装...待完善
@@ -4854,23 +4891,97 @@ aaa\nbbb
 [huawei@n148 perl]$ 
 ```
 
-## print
-```
-print 456;
-print "123\n";
-[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
-456123
-[huawei@n148 perl]$ 
-```
-## printf
-## sprintf
-## 文件句柄
-```
-```
-## 改变默认句柄 select
-## say
+## read
+read 函数 可以从指定的文件句柄中将指定数目的字节读入到变量里。如果是从标准输入中读
+取的话，相应的文件句柄就是 STDIN。read 函数将返回读到的字节数目。
 
-## 写文本文件
+```
+my($buffer) = "";
+open(FILE, "/etc/services") or	 # 打开标准输入
+     die("Error reading file, stopped");
+while(read(FILE, $buffer, 8) )
+{
+   print("$buffer\n");
+}
+close(FILE);
+
+运行结果打印时刻一行最多8可字符。
+```
+## getc
+getc 函数能从键盘或者文件中获得单个字符。如果碰到 EOF，getc 函数会返回空字符串
+
+## print、printf、sprintf、say
+* print 不带\n；
+* say 自带\n，必须结合use 5.10才能使用；
+* printf 格式化输出字符串；
+* sprintf 只格式化，无print功能。
+
+printf sprintf常用格式符含义
+* %%         百分号
+* %s         字符串
+* %d         整型数字
+* %f         浮点型数字
+* %e         科学计算法
+
+%s %d %f %e可以设置显示字符宽度，补位字符（字符宽度不够时用于补齐的字符），小数位数。
+```
+print "hah\n";
+say "hah1"; #say自带\n，必须使用use 5.010
+printf "hah2\n";
+printf "%d\n", 3.1415126; #输出 3
+printf "%010d\n", 3.1415126; #输出 0000000003，字符宽度为10，向右对齐，宽度不足用0补齐，默认用空格补齐
+
+#%010.2f
+#0      设置字符宽度补齐字符
+#10     设置字符宽度为10
+#.2     设置显示2位小数
+#f      输出浮点型
+printf "%010.2f\n", 3.1415126;	# 0000003.14
+
+printf "%d%%\n", 3.1415126; #输出 3%
+printf "%010.3e\n", 23450000;	# 02.345e+07
+printf "%010s\n", "haha";	#输出000000haha，字符宽度为10，向右对齐，宽度不足用0补齐，默认用空格补齐
+
+#sprintf
+my $result = sprintf("%010d",3.1415126); #()内方法类似于printf, 内容是  0000000003
+print "$result\n";
+
+```
+## 文件句柄
+文件句柄实际上包含文件，进程和套接字的读写。
+### open、写入文本、close
+最简单方式：向文件中追加一段数据后关闭文件
+```
+use autodie;	# 当捕获到某些错误时，会自动调用die结束程序
+open LOG,">>a.log";
+print LOG "haha, hello world\n";
+close LOG;
+```
+下面几种常用open方式，实际上perl会在句柄超出范围或程序结束时，自动关闭。
+```
+open(FD,"> filename") 以覆盖写入的方式打开文件
+open(FD,">> filename") 以追加写入的方式打开文件
+open FD,">>","filename" 同上，也可以不用括号
+open(FD,"filename") 读文件
+open(FD,"< filename") 同上，默认的模式就是输入
+open(FD,"process |") 读进程结果
+open(FD,"| to process") 往进程中写数据，不过对WINDOWS系统写会有问题
+
+打开文件进行读写的操作
+open(FD,"+<filename") 先读后写
+open(FD,"+>filename") 先写后读
+open(FD,"+>>filename") 先追加后读
+```
+```
+$line=<FD> 获取起始行
+while (defined $line=<FD>) {}	如果要遍历整个文件
+@lines=<FD> 将整个文件放入lines数组中
+
+use FileHandle;	可以使用FileHandle包，可以避免变量覆盖的现象。此方法实验未成功
+$fileHandleName= new FileHandle("filename");
+line=<fileHandleName>;
+```
+写文本文件
 ```
 open my $rocks_fh, '>>', 'rocks.txt' or die "could not open rocks.txt: $!";
 foreach my $rock (qw /s l g/){
@@ -4879,6 +4990,79 @@ foreach my $rock (qw /s l g/){
 print $rocks_fh "end\n";
 close $rocks_fh;
 ```
+
+
+### 读取文本文件
+将文件作为perl命令行的参数，perl会使用<>去读取这些文件中的内容。
+```
+由于<>和<STDIN>读取文件、读取标准输入的时候总是自带换行符，很多时候这个自带的换行符都会带来格式问题。所以，有必要在每次读取数据时将行尾的换行符去掉，使用chomp即可
+
+脚本内容：
+foreach (<>){
+    chomp;
+    say "$_";
+}
+
+[huawei@n148 perl]$ perl 1.pl /etc/passwd
+
+
+-------------------
+
+将整个文件读进一个变量，然后把文件名作为每一行的前缀进行替换
+
+my $filename="err.txt";
+open FILE, $filename or die "Can't open '$filename':$|";
+my $lines = join ' ', <FILE>;
+$lines =~ s/^/$filename: /gm;
+say $lines;
+close FILE
+```
+### 二进制读写
+演示png复制文件
+```
+open IN_FD,"1.png";
+open OUT_FD, " > copy.png";
+binmode(IN_FD);
+binmode(OUT_FD);
+while(read(IN_FD, my $buffer,1024)){
+	 print OUT_FD $buffer;
+}
+close(IN_FD);
+close(OUT_FD);
+```
+### 设定当前输出句柄 select
+在select指定句柄后，随后输出在默认情况下，会输出到指定的句柄
+```
+open(FD,"> newfile");
+select(FD);
+print "test"; #将test添加到newfile中
+select(STDOUT);
+print "ok";  #将ok输出到屏幕
+```
+### 文件加锁 flock
+只适用unix，其他系统或网络文件可能无效
+* 创建共享锁
+* 创建排他锁
+* 创建非阻塞锁
+* 排除当前锁 
+```
+可运行但未看出效果。。。
+
+open(FD,">> inputfile");
+flock(FD,2);
+print FD "test string";
+flock(FD,8);
+close(FD);
+```
+### seek
+可以让文件指针指向到指定位置。
+
+seek(FILEHANDLE,BYTEOFFSET,FILEPOSITION)  
+BYTEOFFSET 用于位移值，可以是正负值  
+FILEPOSITION 位置值，0表示到文件开头，1文件中的当前位置，2文件末尾位置  
+### tell
+返回文件中当前字节的位置
+
 
 # 命令行
 其实就是一行式。perl命令行加上"-e"选项，就能在perl命令行中直接写perl表达式。如
@@ -4896,6 +5080,162 @@ https://blog.csdn.net/lw370481/article/details/17392679
 https://blog.csdn.net/alivio/article/details/6898254?spm=1001.2101.3001.6650.7&utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7EOPENSEARCH%7Edefault-7.opensearchhbase&depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7EOPENSEARCH%7Edefault-7.opensearchhbase
 
 https://www.cnblogs.com/air-of-code/p/5990436.html
+
+
+
+## 执行命令 -e
+-e 允许 Perl 从命令行而不是脚本来执行 Perl 语句
+```
+[huawei@n148 perl]$ perl -e 'print "Hellow world\n" '
+Hellow world
+
+```
+## 分为多行
+```
+[huawei@n148 perl]$ perl -e '
+my $a="aaaaa";
+$a=~s/a/c/g;
+print $a,"\n";'
+ccccc	# 打印出此行
+```
+## 处理每一行 -n
+遍历文件每一行进行处理，并不是打印每一行，如需打印需自行处理
+```
+下面2种方式效果一样
+[huawei@n148 perl]$ perl -e "while (<>){print }" file.txt
+this is file
+hello
+你好
+
+[huawei@n148 perl]$ perl -ne "print" file.txt
+this is file
+hello
+你好
+
+-----------------------------------
+
+[huawei@n148 perl]$ perl -ne "print if /hello/" file.txt
+hello
+```
+## 打印每一行 -p
+先按行处理，然后打印结果，-p时候默认带有-n效果
+```
+[huawei@n148 perl]$ perl -pe '' file.txt
+this is file
+hello
+你好
+
+[huawei@n148 perl]$ perl -pe 's/hello/xxx/' file.txt
+this is file
+xxx
+你好
+```
+## 开启warning -w
+```
+perl -w <scriptname>
+```
+* 用户亦可在程序的#!行下（若没有 #! 行则在脚本开头）添加下行内容：  
+	use warnings;  
+	这样就启用了所有可能的警告信息。
+* 若要关闭警告信息，只需在脚本中添加下列内容：  
+	no warnings；  
+	这样便可关闭脚本中所有可能的警告信息。
+
+## 分割本行到数组 -a
+默认按照空白分隔符分割行并存储结果到默认数组@F，一般与-ne一起用
+```
+[huawei@n148 perl]$ perl -pe '' file.txt 
+this is file
+hello world
+你 好
+123
+
+打印文件第一列与每行的列数
+[huawei@n148 perl]$ perl -ane 'print $F[0],"\t", @F+0,"\n"' file.txt 
+this    3
+hello   2
+你      2
+123     1
+```
+## 指定行分隔符 -F
+指定-a选项使用的分隔符，支持正则
+```
+[huawei@n148 perl]$ perl -pe '' file.txt 
+123@456@789
+@123@456@789@
+@@@
+@
+
+打印每行分割后的前2个与总个数，仔细看分割后的总数理解分割原理
+
+[huawei@n148 perl]$ perl -F'@' -ane 'print $F[0],",",$F[1], ",",@F+0,"\n"' file.txt 
+123,456,3
+,123,5
+,,4
+,,0
+```
+
+## 去除行尾换行 -l
+对所有输入的命令进行chomp,即去除\n;同时对所有输出数据自动附件\n
+```
+这里使用-l替代了-F案例中手动打印行尾\n
+
+[huawei@n148 perl]$ perl -F'@' -lane 'print $F[0],",",$F[1], ",",@F+0' file.txt 
+123,456,3
+,123,4
+,,0
+,,0
+```
+## 更新原文件 -i
+启动原文编辑功能， 这一点可以代替sed 操作命令
+```
+[huawei@n148 perl]$ perl -pe '' file.txt 
+123@456@789
+@123@456@789@
+@@@
+@
+
+下面操作后原文件就会被改变了
+[huawei@n148 perl]$ perl -i -pe 's/@/*/g' file.txt
+
+下面的会将原文件先备份再更新
+[huawei@n148 perl]$ perl -i.bak -pe 's/@/*/g' file.txt 
+```
+## 导入模块 -M
+Perl单行命令可以使用perl的模块，如使用sum函数的模块计算@F求和
+```
+[huawei@n148 perl]$ perl -pe '' file.txt
+1 2 3
+4 5 
+6
+
+[huawei@n148 perl]$ perl -MList::Util=sum -alne 'print sum @F' file.txt
+6
+9
+6
+```
+## 类似awk的BEGIN与END
+Perl也可以像awk一样使用END命令
+```
+[huawei@n148 perl]$ perl -pe '' file.txt
+1 2 3
+4 5 
+6
+
+统计单词数量
+
+[huawei@n148 perl]$ perl -alne 'BEGIN{ print "start to run..."}; $t += @F; END { print $t,"\nend"}' file.txt
+start to run...
+6
+end
+```
+## 查看前n行
+```
+[huawei@n148 perl]$ perl -pe 'exit if $.>10' /etc/passwd
+```
+## 一行式
+https://github.com/vinian/perl1line.txt/blob/master/perl1line-ch.txt
+
 # 智能匹配 ~~
 检测某个元素是否在数组中的代码，使用智能匹配
 ```
@@ -5004,3 +5344,4 @@ foreach ( @names ) {
 }
 ```
 # List::Util模块
+# Regexp::Common
