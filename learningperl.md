@@ -4571,8 +4571,8 @@ Perl 语言中定义了一些特殊的变量，通常以 $, @, 或 % 作为前�
 如果你想使用英文名的特殊变量需要在程序头部添加 use English;。这样就可以使用具有描述性的英文特殊变量。
 ```
 
-## 默认参数变量 $_
-对于需要参数的函数或表达式，但却没有给参数，这是将会使用perl的默认参数变量$_
+## 默认参数 $_
+对于需要参数的函数或表达式，但却没有给参数则默认是变量$_
 ```
 $_="abcde";
 print ;
@@ -4581,10 +4581,125 @@ foreach(1..10){
 	print $_;
 }
 ```
+## 命令行参数 ARGV
+* 命令行参数保存在数组@ARGV中，数组下标从0开始
+* ARGV[0]是第一个参数（非程序名称），以此类推
+* $ #ARGV保存数组最后一个元素的索引（非数组元素数量），当无参数时$#ARGV等于-1（不是零）
+* 命令行参数的总数是 $#ARGV+1
+* < ARGV >也可作为文件句柄数组进行迭代，见下面的案例
+
+参数列表案例
+```
+die "$0 运行需要参数\n" if $#ARGV < 0 ;
+print "参数列表=@ARGV\n";
+print "第一个=$ARGV[0]\n";
+print "第二个=$ARGV[1]\n";
+print "参数总个数=", $#ARGV + 1,"\n";
+print "最末参数=$ARGV[$#ARGV]\n";
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl" 
+/home/huawei/playground/perl/1.pl 运行需要参数
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"  a b c d e
+参数列表=a b c d e
+第一个=a
+第二个=b
+参数总个数=5
+最末参数=e
+```
+文件句柄数组案例
+```
+die "$0 运行需要参数\n" if $#ARGV < 0 ;
+while( <ARGV> ) {
+	print;
+}
+
+运行程序会将多个文件的内容依次打印出来
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl" err.txt  rocks.txt  a.log 
+```
+在文件中查找匹配正则的行
+```
+die "$0 运行需要参数\n" if $#ARGV < 1 ;
+my $pattern = shift;
+while(my $line=<ARGV> ) {
+	print "文件名=$ARGV，行号=$.，$line" if $line=~/$pattern/i;
+	close(ARGV) if eof;
+}
+
+当到达待处理文件的末尾（EOF）时，关闭 ARGV 文件句柄。这样做即可重置变量 $.。如果这里没有显式地关闭 ARGV，变量 $. 就会不断递增下去，并在读取下一个文件时仍无法回到 1。
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl" abc err.txt  
+文件名=err.txt，行号=1，bar, World!/nabc
+文件名=err.txt，行号=5，bar, World!/nabc
+```
+展示指定用户所开启的进程列表，综合大案例。。。
+```
+# 该脚本只接受一个参数。如果 ARGV 为空（即命令行没有提供任何参数）的话，就执行 die
+# 函数退出脚本，并产生一个出错消息（请记住，$#ARGV 负责保存最后一个参数的编号；
+# @ARGV[0] 是第一个参数，而不是脚本名称 ；脚本名保存在变量 $0 中）。如果用户提供了多
+# 个参数，该脚本在执行时也将产生错误信息。
+unless ( $#ARGV == 0 ){ die "Usage: $0 <argument>: $!"; }
+
+open(PASSWD, "/etc/passwd") || die "Can't open: $!"; # 通过 PASSWD 文件句柄以读方式打开文件 /etc/passwd。
+my $username=shift(@ARGV);	# 从 @ARGV 中移出第一个参数，并赋值给变量 $username。
+my $hasuser=0;
+while( my $pwline = <PASSWD>){ # 迭代PASSWD 每一行
+	if ($pwline =~ /^$username/) # 使用 =~ 检查第一个参数内容是否匹配 $username。
+	{
+		print "passwd里找到$username\n";
+		$hasuser=1;
+		last;
+	}
+}
+die "$username is not a user here.\n" if 0 == $hasuser; # 如果找不到匹配，则退出循环。
+close PASSWD; # 关闭文件句柄。
+
+open(LOGGEDON, "who |" ) || die "Can't open: $!" ; # 将文件句柄 LOGGEDON 打开为输入过滤器。把 UNIX 中 who 命令的输出内容转发给该文件句柄。
+my $logged_on;
+while(my $logged = <LOGGEDON> ){ #检查输入过滤器的每一行内容。如果用户已登录的话，就把标量 $logged_on 设置为 1，并退出循环。
+	if ($logged =~ /$username/){ 
+		print "who里找到$username\n";
+		$logged_on = 1; last;
+	}
+}
+close LOGGEDON; # 关闭输入过滤器。
+die "$username is not logged on.\n" if ! $logged_on;
+
+print "$username is logged on and running these processes.\n";
+open(PROC, "ps -aux|" ) || die "Can't open: $! "; # 将文件句柄 PROC 打开为输入过滤器。把 UNIX 命令的输出内容转发给该文件句柄
+my $idx=0;
+while(my $line=<PROC>){# 依次通过过滤器读取每一行内容，并将其存入标量 $line。
+	if ($line =~ /^$username/){ # 如果 $line 中含有匹配于该用户的项的话，则将该行内容打印到 STDOUT，即终端屏幕。
+		print $line;
+		if (++$idx >= 10)	# 只看10条就够了
+		{
+			last;
+		}
+	}
+}
+close PROC; # 关闭过滤器。
+
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl" huawei
+passwd里找到huawei
+who里找到huawei
+huawei is logged on and running these processes.
+huawei     6434  0.0  0.0 163956  2628 ?        S    Dec09   0:13 sshd: huawei@pts/0
+huawei     6441  0.0  0.0 117036  3664 pts/0    Ss+  Dec09   0:00 -bash
+huawei     6495  0.0  0.0 163960  2536 ?        S    Dec09   0:00 sshd: huawei@notty
+huawei     6500  0.0  0.0 115272  3560 ?        Ss   Dec09   0:41 bash -c while [ -d /proc/$PPID ]; do sleep 1;head -v -n 8 /proc/meminfo; head -v -n 2 /proc/stat /proc/version /proc/uptime /proc/loadavg /proc/sys/fs/file-nr /proc/sys/kernel/hostname; tail -v -n 16 /proc/net/dev;echo '==> /proc/df <==';df;echo '==> /proc/who <==';who;echo '==> /proc/end <==';echo '##Moba##'; done
+huawei     6508  0.0  0.0  72292  2908 ?        Ss   Dec09   0:00 /usr/libexec/openssh/sftp-server
+huawei     9419  0.0  0.0 116864  3452 pts/4    Ss+  00:57   0:00 /usr/bin/bash
+huawei    16409  0.0  0.0 116996  3660 pts/5    Ss+  01:30   0:00 /usr/bin/bash
+huawei    50751  0.0  0.0 116996  3692 pts/6    Ss   04:13   0:00 /usr/bin/bash
+huawei    73004  0.0  0.0 156964  2504 ?        S    05:49   0:00 sshd: huawei@notty
+huawei    73011  0.0  0.0 113292  1396 ?        Ss   05:49   0:00 bash
+```
 ## 所有变量
 变量对应的名称见 https://www.runoob.com/perl/perl-special-variables.html
 ```
-$0 含有正在执行的程序名
+$0 当前perl脚本文件名称
 $! 获取当前错误信息值，常用于 die 命令
 $” 列表分隔符
 $# 打印数字时默认的数字输出格式
@@ -4594,7 +4709,7 @@ $& 与上个格式匹配的字符串
 $( 当前进程的组ID$) 当前进程的有效组ID
 $* 设置1表示处理多行格式.现在多以/s和/m修饰符取代之.
 $, 当前输出字段分隔符
-$. 文件中最后处理的当前行号
+$. 代表处理文件时当前迭代的行号
 $/ 当前输入记录分隔符,默认情况是新行
 $: 字符设置,此后的字符串将被分开,以填充连续的字段.
 $; 在仿真多维数组时使用的分隔符.
@@ -4621,7 +4736,7 @@ $^W 警告开关的当前值
 $^X Perl二进制可执行代码的名字
 $^V Perl 解释器的版本、子版本和修订版本信息，同$PERL_VERSION
 $_ 在执行输入和模式搜索操作时使用的默认空格变量
-$| 控制对当前选择的输出文件句柄的缓冲
+$| 默认等于0，如果等于非0表示当前的输出不经过缓存立刻输出
 $~ 当前报告格式的名字
 $` 在上个格式匹配信息前的字符串
 $’ 在上个格式匹配信息后的字符串
@@ -4630,7 +4745,7 @@ $< 当前执行解释器的用户的真实ID
 $ 含有与上个匹配正则表达式对应括号结果
 $= 当前页面可打印行的数目
 $> 当前进程的有效用户ID包含正在执行的脚本的文件名
-$ARGV 从默认的文件句柄中读取时的当前文件名
+$ARGV 将<ARGV>当做句柄使用时代表命令行参数所对应的文件名，见命令行参数ARGV案例
 ARGV 一个特殊的文件句柄，用于遍历 @ ARGV 中出现的所有文件名
 %ENV 环境变量列表
 %INC 库文件的搜索路径
@@ -4799,19 +4914,67 @@ File::Find::Rule
 say $0			# 全路径自身文件名
 say __FILE__;	# 一样
 ```
-## 文件各类检测
-有好多待添加。。。
-### 是否存在
+## 文件测试
+* Perl 也提供了许多文件测试运算符用于查看各种文件属性
+* 其中大部分的运算符都在结果为真时返回 1，在结果为假时返回“”（即 null）
+* 如果需要反复多次测试同一个文件，则可在程序中使用单个下划线来代表文件名。这样	便可利用前一次文件测试的 stat 结构。
+
+
+文件测试运算符
+	
+	运算符 		含 义
+	-r $file 	如果 $file 可读，则为真
+	-w $file 	如果 $file 可写，则为真
+	-x $file 	如果 $file 可执行，则为真
+	-o $file 	如果 $file 的属主是有效的 uid，则为真
+	-e $file 	如果 $file 存在，则为真
+	-z $file 	如果 $file 大小为 0，则为真
+	-s $file 	如果 $file 大小非 0，则为真。返回文件字节大小
+	-f $file 	如果 $file 是普通文件，则为真
+	-d $file 	如果 $file 是目录，则为真
+	-l $file 	如果 $file 是符号链接，则为真
+	-p $file 	如果 $file 是命名的管道或 FIFO，则为真
+	-S $file 	如果 $file 是套接字，则为真
+	-b $file 	如果 $file 是块特殊文件，则为真
+	-c $file 	如果 $file 是字符特殊文件，则为真
+	-u $file 	如果 $file 具有 setuid 位设置，则为真
+	-g $file 	如果 $file 具有 setgid 位设置，则为真
+	-k $file 	如果 $file 具有 sticky 位设置，则为真
+	-t $file 	如果 $file 文件句柄对 tty 打开，则为真
+	-T $file 	如果 $file 是文本文件，则为真
 ```
+是否存在
 say -e '/etc/passwd';
 [huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
 1
-```
-### 上次修改距今天数
-```
+----------------------------
+上次修改距今天数
 say -M '/etc/passwd';
 [huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
 74.6710532407407
+----------------------------
+更多的测试
+
+my $file="err.txt";
+print "File is readable\n" if -r $file;
+print "File is writeable\n" if -w $file;
+print "File is executable\n" if -x $file;
+print "File is a regular file\n" if -f $file;
+print "File is a directory\n" if -d $file;
+print "File is text file\n" if -T $file;
+printf "File was last modified %f days ago.\n", -M $file;
+print "File has read, write, and execute set.\n" if -r $file && -w _ && -x _;
+stat($file);
+print "File is a set user id program.\n" if -u _;
+print "File is zero size.\n" if -z_;
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+File is readable
+File is writeable
+File is a regular file
+File is text file
+File was last modified 0.009444 days ago.
+File is zero size.
 ```
 
 ## 删除文件
@@ -4867,8 +5030,125 @@ say "$base, $path, $suffix";
 [huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
 1, /home/huawei/playground/perl/, .pl
 ```
-# 输入与输出
-## 读取标准输入
+
+
+# 句柄
+句柄实际上包含文件、管道、进程和套接字的读写。
+## open、写入文本、close
+```
+最简单方式：向文件中追加一段数据后关闭文件。写入可以使用print或say  
+
+use autodie;	# 当捕获到某些错误时，会自动调用die结束程序
+open LOG,">>a.log";
+print LOG "haha, hello world\n";
+close LOG;
+```
+下面几种常用open方式，实际上perl会在句柄超出范围或程序结束时，自动关闭。
+* 读是 <
+* 写是 >
+* 带有+则是读写都有，具体见下面
+```
+open(FD,"> filename") 以覆盖写入的方式打开文件
+open(FD,">> filename") 以追加写入的方式打开文件
+open FD,">>","filename" 同上，也可以不用括号
+open(FD,"filename") 读文件
+open(FD,"< filename") 同上，默认的模式就是输入
+open(FD,"process |") 读进程结果
+open(FD,"| to process") 往进程中写数据，不过对WINDOWS系统写会有问题
+
+打开文件进行读写的操作
+open(FD,"+<filename") 先读后写
+open(FD,"+>filename") 先写后读
+open(FD,"+>>filename") 先追加后读
+```
+```
+$line=<FD> 获取起始行
+while (defined $line=<FD>) {}	如果要遍历整个文件
+@lines=<FD> 将整个文件放入lines数组中
+
+use FileHandle;	可以使用FileHandle包，可以避免变量覆盖的现象。此方法实验未成功
+$fileHandleName= new FileHandle("filename");
+line=<fileHandleName>;
+```
+写文本文件
+```
+open my $rocks_fh, '>>', 'rocks.txt' or die "could not open rocks.txt: $!";
+foreach my $rock (qw /s l g/){
+	say $rocks_fh $rock;
+}
+print $rocks_fh "end\n";
+close $rocks_fh;
+```
+
+
+## 读取指定字节数 read
+可以从指定的文件句柄中将指定数目的字节读入到变量里。如果是从标准输入中读
+取的话，相应的文件句柄就是 STDIN。read 函数将返回读到的字节数目。
+```
+my($buffer) = "";
+open(FILE, "/etc/services") or	 # 打开标准输入
+     die("Error reading file, stopped");
+while(read(FILE, $buffer, 8) )
+{
+   print("$buffer\n");
+}
+close(FILE);
+
+运行结果打印时刻一行最多8可字符。
+```
+## 读一个字符 getc
+getc 函数能从键盘或者文件中获得单个字符。如果碰到 EOF，getc 函数会返回空字符串。案例见tell
+
+
+## 读取文本文件
+将文件作为perl命令行的参数，perl会使用<>去读取这些文件中的内容。
+```
+由于<>和<STDIN>读取文件、读取标准输入的时候总是自带换行符，很多时候这个自带的换行符都会带来格式问题。所以，有必要在每次读取数据时将行尾的换行符去掉，使用chomp即可
+
+脚本内容：
+foreach (<>){
+    chomp;
+    say "$_";
+}
+
+[huawei@n148 perl]$ perl 1.pl /etc/passwd
+
+-------------------
+
+打印指定文件的匹配行
+
+open(FILE, "err.txt") || die "Can't open datebook: $!\n";
+while(<FILE>) {
+	print if /abc/;		# 这里每次迭代的行内容是$_，打印的也是$_
+}
+close(FILE);
+
+与上面的效果一样，只是更啰嗦
+while(my $line = <FILE>) {
+	print "$line" if $line =~ /abc$/;
+}
+-------------------
+
+文本文件转字符串，并正则替换每行前缀内容
+
+my $filename="err.txt";
+open FILE, $filename or die "Can't open '$filename':$|";
+my $lines = join ' ', <FILE>;
+$lines =~ s/^/$filename: /gm;
+say $lines;
+close FILE
+
+-------------------
+
+文本文件转数组，并打印内容与行数
+
+open(FILE, "err.txt") || die "Can't open datebook: $!\n";
+my @lines = <FILE>;
+print @lines;
+print $#lines + 1, "\n";
+close(FILE);
+```
+## 读取标准输入 STDIN
 使用一对尖括号格式的< STDIN>来读取来自非文件的标准输入，例如来自管道的数据，来自输入重定向的数据或者来自键盘的输入，< STDIN>读取的输入会自带换行符，所以print输出的时候不要加上额外的换行符。如需去除行尾的换行，使用chomp
 ```
 读取一行：
@@ -4890,27 +5170,7 @@ aaa\nbbb
 
 [huawei@n148 perl]$ 
 ```
-
-## read
-read 函数 可以从指定的文件句柄中将指定数目的字节读入到变量里。如果是从标准输入中读
-取的话，相应的文件句柄就是 STDIN。read 函数将返回读到的字节数目。
-
-```
-my($buffer) = "";
-open(FILE, "/etc/services") or	 # 打开标准输入
-     die("Error reading file, stopped");
-while(read(FILE, $buffer, 8) )
-{
-   print("$buffer\n");
-}
-close(FILE);
-
-运行结果打印时刻一行最多8可字符。
-```
-## getc
-getc 函数能从键盘或者文件中获得单个字符。如果碰到 EOF，getc 函数会返回空字符串
-
-## print、printf、sprintf、say
+## 输出与格式化 print、printf、sprintf、say
 * print 不带\n；
 * say 自带\n，必须结合use 5.10才能使用；
 * printf 格式化输出字符串；
@@ -4947,77 +5207,9 @@ my $result = sprintf("%010d",3.1415126); #()内方法类似于printf, 内容是 
 print "$result\n";
 
 ```
-## 文件句柄
-文件句柄实际上包含文件，进程和套接字的读写。
-### open、写入文本、close
-最简单方式：向文件中追加一段数据后关闭文件
-```
-use autodie;	# 当捕获到某些错误时，会自动调用die结束程序
-open LOG,">>a.log";
-print LOG "haha, hello world\n";
-close LOG;
-```
-下面几种常用open方式，实际上perl会在句柄超出范围或程序结束时，自动关闭。
-```
-open(FD,"> filename") 以覆盖写入的方式打开文件
-open(FD,">> filename") 以追加写入的方式打开文件
-open FD,">>","filename" 同上，也可以不用括号
-open(FD,"filename") 读文件
-open(FD,"< filename") 同上，默认的模式就是输入
-open(FD,"process |") 读进程结果
-open(FD,"| to process") 往进程中写数据，不过对WINDOWS系统写会有问题
 
-打开文件进行读写的操作
-open(FD,"+<filename") 先读后写
-open(FD,"+>filename") 先写后读
-open(FD,"+>>filename") 先追加后读
-```
-```
-$line=<FD> 获取起始行
-while (defined $line=<FD>) {}	如果要遍历整个文件
-@lines=<FD> 将整个文件放入lines数组中
-
-use FileHandle;	可以使用FileHandle包，可以避免变量覆盖的现象。此方法实验未成功
-$fileHandleName= new FileHandle("filename");
-line=<fileHandleName>;
-```
-写文本文件
-```
-open my $rocks_fh, '>>', 'rocks.txt' or die "could not open rocks.txt: $!";
-foreach my $rock (qw /s l g/){
-	say $rocks_fh $rock;
-}
-print $rocks_fh "end\n";
-close $rocks_fh;
-```
-
-
-### 读取文本文件
-将文件作为perl命令行的参数，perl会使用<>去读取这些文件中的内容。
-```
-由于<>和<STDIN>读取文件、读取标准输入的时候总是自带换行符，很多时候这个自带的换行符都会带来格式问题。所以，有必要在每次读取数据时将行尾的换行符去掉，使用chomp即可
-
-脚本内容：
-foreach (<>){
-    chomp;
-    say "$_";
-}
-
-[huawei@n148 perl]$ perl 1.pl /etc/passwd
-
-
--------------------
-
-将整个文件读进一个变量，然后把文件名作为每一行的前缀进行替换
-
-my $filename="err.txt";
-open FILE, $filename or die "Can't open '$filename':$|";
-my $lines = join ' ', <FILE>;
-$lines =~ s/^/$filename: /gm;
-say $lines;
-close FILE
-```
-### 二进制读写
+## 二进制读写 binmode
+binmode用以指定使用二进制方式进行读写  
 演示png复制文件
 ```
 open IN_FD,"1.png";
@@ -5030,7 +5222,7 @@ while(read(IN_FD, my $buffer,1024)){
 close(IN_FD);
 close(OUT_FD);
 ```
-### 设定当前输出句柄 select
+## 设定当前输出句柄 select
 在select指定句柄后，随后输出在默认情况下，会输出到指定的句柄
 ```
 open(FD,"> newfile");
@@ -5039,31 +5231,278 @@ print "test"; #将test添加到newfile中
 select(STDOUT);
 print "ok";  #将ok输出到屏幕
 ```
-### 文件加锁 flock
-只适用unix，其他系统或网络文件可能无效
-* 创建共享锁
-* 创建排他锁
-* 创建非阻塞锁
-* 排除当前锁 
+## 文件锁 flock
+* 如要避免两个程序同时写同一个文件，用户可以先为该文件加锁，然后由一个程序单独访问它，并在使用完毕后再对文件进行解锁。
+* flock 函数含有两个参数：文件句柄，以及文件锁操作。
+* 在非 UNIX 系统上，这些文件锁操作可能是无效的。
+
+文件锁操作类型：
+* 共享锁	lock_sh 1
+* 排他锁	lock_ex 2
+* 非阻塞锁	lock_nb 4 
+* 解除锁	lock_un 8
 ```
-可运行但未看出效果。。。
+演示在多进程中使用排他锁（LOCK_EX）对数据源进行串行操作。
 
-open(FD,">> inputfile");
-flock(FD,2);
-print FD "test string";
-flock(FD,8);
-close(FD);
+use Fcntl qw(:flock);	# 使用宏名称，否则就得使用数字。。。
+use POSIX qw(strftime);
+
+open (FD, " < err.txt") or die "$!\n";
+flock(FD, LOCK_EX);
+print "Yeah i get the lock by pid=$$ at ", cur_time(), "\n";
+sleep 10;
+flock(FD, LOCK_UN);
+print "Oops i lose the lock by pid=$$ at ", cur_time(), "\n";
+close FD;
+
+sub cur_time {
+      strftime "%H:%M:%S", localtime;
+}
+
+使用2个终端分别运行，可以看到第二个终端会阻塞直到第一个释放锁后，第二个才能获取锁。
 ```
-### seek
-可以让文件指针指向到指定位置。
-
-seek(FILEHANDLE,BYTEOFFSET,FILEPOSITION)  
-BYTEOFFSET 用于位移值，可以是正负值  
-FILEPOSITION 位置值，0表示到文件开头，1文件中的当前位置，2文件末尾位置  
-### tell
-返回文件中当前字节的位置
+使用flock.不会影响其他任何不使用flock的Script. 下面是掌握locks的五个规则:
+* Locks只会影响其他locks. 不会阻止进程打开，读，写，删除文件等操作。
+* 每个打开的文件只能有一个lock.
+* 如果一个进程有LOCK_EX （独占）lock，则其他进程只能等待知道该进程释放后取得。（补充：包括请求LOCK_EX和LOCK_SH lock)
+* 如果一个进程有LOCK_SH （共享）lock，则任何试图取得LOCK_EX的进程将失败，但是可以同时取得LOCK_SH lock;
+* 对flock请求直到获得之后才会返回，除非lock是用 LOCK_SH| LOCK_NB（非封锁 non-block）取得的，这时一旦其他进程已经有lock，将直接返回错误信息。（关于这段的实验总结：如果是同时读两个文件并都使用flock函数，如果从前一个进程的LOCK_EX lock申请LOCK_EX lock，或者如果前一个进程是LOCK_SH lock,申请LOCK_EX lock都需要等待第一个进程结束。如果第一个进程是LOCK_SH lock，第二个进程申请LOCK_SH lock可以马上得到。）
 
 
+## 移动文件指针 seek
+可以让文件指针指向到指定位置
+
+seek (filevar, distance, relative_to);
+* filevar，文件指针
+* distance，移动的字节数，正数向前移动，负数往回移动
+* reletive_to，值可为
+  * 0：SEEK_SET，从文件头开始移动
+  * 1：SEEK_CUR，从当前位置移动
+  * 2：SEEK_END，从文件末尾移动
+* 运行成功返回真（非零值），失败则返回零
+* 常与tell函数合用。
+```
+[huawei@n148 perl]$ cat char.txt 
+ABCDEFGHIJKLMNOPQRSTUVWXYZ
+-------------------------------------
+这个图配合下面的代码逻辑演示SEEK_SET的作用
+
+         +--------------------------  0: Initially.
+         |         +---------------- 10: After seek($fh, 10, SEEK_SET).
+         |         |    +----------- 15: After reading "KLMNO".
+         |         |    |    +------ 20: After seek($fh, 20, SEEK_SET).
+         |         |    |    |
+         v         v    v    v     
+file:    ABCDEFGHIJKLMNOPQRSTUVWXYZ
+indexes: 01234567890123456789012345
+
+
+use Fcntl qw( SEEK_SET );
+open IN, "<char.txt";
+seek(IN,10,SEEK_SET);
+read IN, my $temp, 5;
+say $temp;
+seek(IN,20,SEEK_SET);
+read IN, $temp, 5;
+say $temp;
+close(IN);
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+KLMNO
+UVWXY
+
+-------------------------------------
+这个图配合下面的代码逻辑演示SEEK_CUR的作用
+
+         +--------------------------  0: Initially.
+         |         +---------------- 10: After seek($fh, 10, SEEK_CUR).
+         |         |    +----------- 15: After reading "KLMNO".
+         |         |    |         +- 25: After seek($fh, 10, SEEK_CUR).
+         |         |    |         |
+         v         v    v         v 
+file:    ABCDEFGHIJKLMNOPQRSTUVWXYZ
+indexes: 01234567890123456789012345
+
+use Fcntl qw( SEEK_CUR );
+open IN, "<char.txt";
+seek(IN,10,SEEK_CUR);
+read IN, my $temp, 5;
+say $temp;
+seek(IN,10,SEEK_CUR);
+read IN, $temp, 5;
+say $temp;
+close(IN);
+
+因为char.txt内尾行有回车，所以这里也读了进来并打印除了回车换行
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+KLMNO
+Z
+
+[huawei@n148 perl]$ 
+-------------------------------------
+
+获得文件的字节数，可以先偏移到文件末尾，再查看当前偏移位置来查看
+
+open FILE, "char.txt";
+seek(FILE, 0, 2);
+my $position = tell(FILE);
+say $position;
+
+因为文件行尾有回车所以是26+1字节
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+27
+
+-rw-rw-r-- 1 huawei huawei    27 Dec 15 01:48 char.txt
+```
+
+
+## 获取文件指针位置 tell
+返回文件指针的当前字节位置
+```
+open(fh, "<", "char.txt");  
+my $position = tell(fh); 	# 新打开的文件位置是0
+print("Position of read pointer before reading: $position\n"); 
+print("First ten characters are: "); 
+for(my $i = 0; $i < 10; $i++) 
+{ 
+    my $ch = getc(fh);  # 读1个char，读完后指针后移1位
+    print" $ch"; 
+} 
+$position = tell(fh);  # 此时已经读了10个char，所以位置在10
+print("\nCurrent Position: $position\n"); 
+close(fh); 
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+Position of read pointer before reading: 0
+First ten characters are:  A B C D E F G H I J
+Current Position: 10
+```
+
+## 管道 |
+带有管道操作的 Perl 脚本是不能直接在不同系统间互相移植的。
+* 输出过滤器  
+	将perl代码的输出作为外部命令的输入
+```
+使用wc计算字符串中的字符数目并输出
+
+open(MYPIPE, "| wc -w");
+print MYPIPE "apples pears peaches";
+close(MYPIPE);
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+3
+
+------------------------------------
+
+两次过滤
+
+open(FOO, "| sort| tr '[a-z]' '[A-Z]'");
+open(DB, "err.txt"); #
+while(<DB>){ print FOO ; }
+close FOO;
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+AAA = '$LIBDIR/DBMAC'
+AUTH_NOLOGIN_TIMES    = 3
+BAR, WORLD!/NABC
+BAR, WORLD!/NABC
+PUT BEFORE THIRD LINE
+PUT BEFORE THIRD LINEMALONGSHUAI GAOXIAOFANG
+SHARED_PRELOAD_LIBRARIES = '$LIBDIR/DBMAC, $LIBDIR/PGAUDIT, $LIBDIR/PASSWORDCHECK'     # (CHANGE REQUIRES RESTART)
+STRING
+WORD MATCHING USING: THETHE
+```
+* 输入过滤器  
+	外部命令的输出作为perl代码的输入
+```
+
+将date命令的输出传递给perl
+
+open(INPIPE, "date |"); # Windows (2000/NT) use: date /T
+my $today = <INPIPE> ;
+print $today;
+close(INPIPE);
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+Wed Dec 15 04:37:59 CST 2021
+
+--------------------------------
+
+使用find命令查找文件并使用perl输出
+
+open(FINDIT, "find . -name '*.txt' -print |") || die "Couldn't execute find!\n";
+while( my $filename = <FINDIT> ){
+ print $filename;
+}
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+./rocks.txt
+./mulu.txt
+./ok.txt
+./err.txt
+./file.txt
+./char.txt
+```
+## 检查文件尾 eof
+* eof 函数用于检查是否到达文件末尾
+* 如果对文件句柄的下一次读操作是发生在文件末尾，或者文件没有打开的话，函数返回1
+* 如果没有提供参数，则 eof 函数将返回上一次文件读操作的eof状态
+* 带括号的 eof 函数可用在循环体代码内，负责在读取上一个文件句柄时判断其文件末尾状态
+* 如果不带括号的话，该函数则可检查每个已打开文件的末尾状态。
+
+打印成功匹配的行到文件尾
+```
+open ( DB, "err.txt") || die "Can't open emp.names: $!";
+while(<DB>){
+	print if (/string/ .. eof); # 打印成功匹配的行到文件尾
+}
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+string
+bar, World!/nabc
+Put before third linemalongshuai gaoxiaofang
+auth_nologin_times    = 3
+Put before third line
+aaa = '$libdir/dbmac'
+```
+依次打印多个文件的内容，注意2个文件之间的打印逻辑
+```
+while(<>){	# 此处其实是迭代命令行参数中的每一个文件的所有行
+	print "$.\t$_";  # 打印行号与行内容
+	if (eof){	# 如果已到文件末尾位置，则打印一行 30 个短横线。
+ 		print "-" x 30, "\n";
+		close(ARGV); # 关闭文件句柄，把 $. 的值重置为 1，以便下一次还能打开文件。在达到文件 file1 的末尾后，脚本将继续处理下一个参数file2，同样从第 1 行开始。
+ 	}
+}
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"  err.txt rocks.txt 
+1       bar, World!/nabc
+2       word matching using: thethe
+3       shared_preload_libraries = '$libdir/dbmac, $libdir/pgaudit, $libdir/passwordcheck'     # (change requires restart)
+4       string
+5       bar, World!/nabc
+6       Put before third linemalongshuai gaoxiaofang
+7       auth_nologin_times    = 3
+8       Put before third line
+9       aaa = '$libdir/dbmac'
+------------------------------
+1       s
+2       l
+3       g
+4       end
+------------------------------
+```
+## 原位编辑 -i
+```
+while(<ARGV>){ # Open ARGV for reading
+	tr/a-z/A-Z/;	
+	print; # Output goes to file currently being read in-place
+	close ARGV if eof;
+}
+
+[huawei@n148 perl]$ perl -i.bak  1.pl  err.txt
+执行上面后原err.txt内文件变为大写，且会生成err.txt.bak文件（内容为未修改之前）
+```
 # 命令行
 其实就是一行式。perl命令行加上"-e"选项，就能在perl命令行中直接写perl表达式。如
 ```
