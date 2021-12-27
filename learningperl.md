@@ -4065,10 +4065,29 @@ matched: 12, 2
 ```
 
 ### 多行模式 m
-正则表达式一般都只用来匹配单行数据，但有时候却需要一次性匹配多行。比如匹配跨行单词、匹配跨行词组，匹配跨行的对称分隔符(如一对括号)。  
-
-注意：/m 修饰符对于 \A 和 \z 是无效的，见下例
+* 正则表达式一般都只用来匹配单行数据，但有时候却需要一次性匹配多行。比如匹配跨行单词、匹配跨行词组，匹配跨行的对称分隔符(如一对括号)。  
+* 一般匹配结尾常用$，在带有\n的字符串中 $ 只会比对最后的\n ，如希望$能匹配所有\n就要加 /m
+* 注意：/m 修饰符对于 \A 和 \z 是无效的，见下例
 ```
+$str = "line123\nline456\nline789";
+$str =~ s/\d+$//g;	# 将数字结尾的行替换为空，这里仅替换了最后一处
+print "$str\n";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+line123
+line456
+line
+
+注意现在加了m，每个换行符号都视为结尾
+$str = "line123\nline456\nline789";
+$str =~ s/\d+$//mg;
+print "$str\n";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+line
+line
+line
+
+-----------------------------------
+
 my $txt="ab\ncd";
 
 下面3句都可以匹配。关于多行匹配，需要注意的是"."默认情况下无法匹配换行符。可以使用[\d\D]代替点，也可以开启s修饰符使"."能匹配换行符。
@@ -4114,12 +4133,34 @@ Tomorrow will never be here.
 Today is history.
 Tomorrow will never be here.
 ```
-### “.”能匹配任意 s
-默认情况下"."是不能匹配换行符\n的，开启了s修饰符功能后，可以让"."匹配换行符。  
-
-<font size=6 color=red >注意注意注意：
+### “.”能匹配\n s
+* 字符串中的换行字符 '\n' 被当成是一个字符来处理，所以假设一个具有换行字符的(多行的的字符串，希望比对时忽略那个换行字符，就要加上 s  修饰子
+* 默认情况下"."是不能匹配换行符\n的，开启了s修饰符功能后，可以让"."匹配换行符。  
+* <font size=3 color=red >注意注意注意：
 注意这里含有换行的必须是字符串，即使是文件也得先转数组再join成字符串再匹配才行，不能循环去匹配文件。。。</font>
 ```
+$str = "What a wonder\nful wonderful world.";
+$str =~ s/wonder.?ful/www/g;
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+What a wonder
+ful www world.
+
+接下来加上 s  修饰子后，\n就等于是"一个字符"，也等于'\n'；否则未加s的情况则不属于一个字符，也就是和 '.' 比对不会成功：
+
+$str = "What a wonder\nful wonderful world.";
+$str =~ s/wonder.?ful/www/sg;
+print "$str\n";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+What a www www world.
+
+如果坚持一定要和换行比对成功，则：注意没加 s
+$str = "What a wonder\nful wonderful world.";
+$str =~ s/wonder\nful/www/g;
+print "$str\n";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+What a www wonderful world.
+----------------------------------------------
+print "$str\n";
 $_="Sing a song of sixpence\nA pocket full of rye.\n";
 print;
 print $& if /pence./s;
@@ -4514,21 +4555,29 @@ asd.hs.ja.min..js
 ```
 
 ## 替换操作 s
-替换操作符 s/// 是匹配操作符的扩展，使用新的字符串替换指定的字符串。返回的结果是其完成的替换数目。也可以将"/"换成下面这样：
+* s/原来字符串/目的字符串/修饰子  
+使用新的字符串替换指定的字符串。返回的结果是其完成的替换数目。也可以将"/"换成下面这样：
 ```
 s(Blenheim){Dobbins};
 s#Igor#Boris#;
 ```
 简单的演示
 ```
-$string = "welcome to google site.";
-$string =~ s/google/runoob/;
- 
-print "$string\n";
+基本的替换，默认仅替换第一个，打印替换后的结果
+my $str = "Who are Who you?";
+$str =~ s/Who/What/; 
+print "$str\n";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+What are Who you?
 
-执行以上程序输出结果为：
 
-welcome to runoob site.
+全部替换，获取替换了几次，并打印
+my $str = "Who are Who you?";
+my $count=$str =~ s/Who/What/g; 
+print "$str\t$count\n";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+What are What you?      2
+
 --------------------------------------
 $_ = "green scaly dinosaur";
 s/(\w+) (\w+)/$2, $1/; #替换后为"scaly, green dinosaur"
@@ -4632,6 +4681,14 @@ print "$_\n"; #打印"cave, sweet cave"
 ### 忽略大小写 i
 默认是对大小写敏感的。如果需要关闭大小写敏感性，则应当在匹配运算符的最后一个定界符后面加上 i 修饰符
 ```
+$str = "What a wonderful wonderful world.";
+$str =~ s/w/www/ig;
+print "$str\n";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+wwwhat a wwwonderful wwwonderful wwworld.
+
+
+
 while(<DATA>){
 	print if s/igor/Daniel/i;
 }
@@ -4704,6 +4761,27 @@ print "The salary is now \$$salary.\n";
 $& is 50000
 The salary is now $55000.
 ```
+### 加引号
+```
+$str = "What a wonderful wonderful world.";
+$str =~ s/w/'$&'/g;
+print "$str\n";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+What a 'w'onderful 'w'onderful 'w'orld.
+```
+### 局部大小写转换
+s替换里面可以使用函数，例如以下几个常用的函数：
+uc($str) 把$str 全转成大写
+lc($str) 把$str 全转成小写
+ucfirst($str) 把$str 第一码转成大写
+```
+$str = "What a wonderful wonderful world.";
+$str =~ s/w\w+/uc($&)/ge;	# w\w代表w开头的单词，注意要有e参与计算
+print "$str\n";
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+What a WONDERFUL WONDERFUL WORLD.
+```
 ### 替换空白
 ```
 一个常见的全局替换是缩减空白，也就是将任何连续的空白转换成单一空格：
@@ -4743,24 +4821,101 @@ s/(fred|barney)/\U$1/gi; 				#$_现在成了"I saw BARNEY with FRED."
 s/(fred|barney)/\L$1/gi; 				#$_现在成了"I saw barney with fred."
 s/(\w+) with (\w+)/\U$2\E with $1/i; 	#$_现在成了"I saw FRED with barney"
 ```
-## 转化操作
-```
-使用 /s 将变量 $string 重复的字符删除：
-$string = 'runoob';
-$string =~ tr/a-z/a-z/s;
-print "$string\n";
+## 列表的置换 tr
+* tr/原来比对列表/目的比对列表/选项  
+perl 的 tr把置换的功能再扩张，虽然 s很强，可是也有做不到的事，例如今天要把大写换成小写，「同时」小写也换成大写，s就一筹莫展了
+* tr也可换为y命令，功能一样...
 
-执行以上程序输出结果为：
-runob
 ```
-转化操作符相关的修饰符：
+$str = "Aine123\nBine789";
+$str =~ tr/a-zA-Z/A-Za-z/;
+print "$str\n";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+aINE123
+bINE789
+```
+* tr 有三个选项
 ```
 修饰符	描述
-c	转化所有未指定字符
-d	删除所有指定字符
-s	把多个相同的输出字符缩成一个
+c	列表没写到的就补给他右边列表的最后一个字符
+d	对照表中没有的项目就删掉
+s	连续重复出现的字压成一个
 ```
+### 去重s与删除d
+去重s
+```
+my $text = 'good cheese';
+$text =~ tr/eo/eu/s;	# 对e和o进行去重，并且将e换为e，将o换为u
+print "$text\n";
 
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+gud chese
+```
+删除d
+```
+my $big = 'vowels are useful';
+$big =~ tr/aeiou/AEI/d;		# aei换为AEI，ou被删除
+print "$big\n";
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+vwEls ArE sEfl
+
+----------------------------------------
+my $temp="AAAABCDEF";
+my $count=$temp=~tr/A/H/d;		# 仅将A换为H，没有要删掉的
+print "$temp\t$count\n";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+HHHHBCDEF       4
+```
+去重加删除ds
+```
+my $text = 'good cheese';
+$text =~ tr/eogd/eu/ds; 
+print "$text\n";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+u chese
+```
+### 替换匹配不是的 c
+		tr/左列表/右列表/c
+规则、左列表没有的，就补右清单的东西。
+```
+my $text = 'good cheese';
+$text =~ tr/eo /123/c;	# 使用“123”里的最末字符3替换除了“eo ”之外的其余字符
+print "$text\n";
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+3oo3 33ee3e
+----------------------------------------
+
+使用z替换除了字母之外的所有字符
+
+$doc="<78>Nov  3 11:20:01 163.17.44.1 crond[30367]";
+$doc =~ y/a-zA-Z/a-z/c;
+print "$doc\n";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+zzzzNovzzzzzzzzzzzzzzzzzzzzzzzzzcrondzzzzzzz
+
+----------------------------------------
+
+只保留字母
+
+my $doc="<78>Nov  3 11:20:01 163.17.44.1 crond[30367]: (root) CMD (LANG=C LC_ALL=C /usr/bin/mrtg /etc/mrtg/mrtg.cfg --lock-file /var/lock/mrtg/mrtg_l --confcache-file /var/lib/mrtg/mrtg.ok)";
+$doc =~ y/a-zA-Z/ /sc;
+print "$doc\n";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+ Nov crond root CMD LANG C LC ALL C usr bin mrtg etc mrtg mrtg cfg lock file var lock mrtg mrtg l confcache file var lib mrtg mrtg ok 
+```
+### 统计指定字符数量
+```
+my $doc="<78>Nov  3 11:20:01 163.17.44.1 crond[30367]";
+my $count=$doc=~tr/o//;	
+my $count=$doc=~tr/o/o/;	和上面效果一样
+print $count, "\n" ;
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+2
+```
+## unicode
+待完善
 # 子程序
 
 ## 简单定义与调用
