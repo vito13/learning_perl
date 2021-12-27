@@ -328,56 +328,49 @@ use strict;
 #报错，使用了未定义变量myname
 my $name = $myname // "junmajinloing";
 ```
-## 引号运算符 q、qq、qx
-- q{ } 	为字符串添加单引号 	q{abcd} 结果为 'abcd'
-- qq{ } 	为字符串添加双引号 	qq{abcd} 结果为 "abcd"
-- qx{ } 	为字符串添加反引号 	qx{abcd} 结果为 `abcd`
+## q,qw,qr,qx,qq
+- q 为字符串添加单引号 q{abcd} 结果为 'abcd'
+```
+my $v=aaaaa;
+my $someword = q~i 've some $v money~; 
+print $someword, "\n";
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+i 've some $v money
+```
+- qq 为字符串添加双引号 qq{abcd} 结果为 "abcd"
+```
+my $v=aaaaa;
+my $someword = qq/i 've some $v money/; 
+print $someword, "\n";
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+i 've some aaaaa money
+```
+- qw 代表用空格来分隔元素,得到列表
+```
+my @list = qw/perl Regular network web/;
+$,=',';
+print @list ,"\n";
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+perl,Regular,network,web,
+```
+- qx 为字符串添加反引
 
 ```
-$a = 10;
-$b = q{a = $a};
-print "q{a = \$a} = $b\n";
-$b = qq{a = $a};
-print "qq{a = \$a} = $b\n";
-# 使用 unix 的 date 命令执行
-$t = qx{date};
-print "qx{date} = $t\n";
-
-以上程序执行输出结果为：
-q{a = $a} = a = $a
-qq{a = $a} = a = 10
-qx{date} = 2016年 6月10日 星期五 16时22分33秒 CST
-
-
-
-#!/usr/bin/perl
-use 5.12;
-
-say q!abc!;
-say q<abc>;
-say qq{abc};
-
-say qq 1def1;   # 等价于qq(def)
-say qq adefa;   # 等价于qq(def)
-
-say qq{abc\}def};  # 转义终止符
-say qq{abc\{def};  # 转义起始符
-say qq ad\aefa;    # 转义起始符a，输出daef
-
-say qq{ab{cd}e};   # ab{cd}e
-
-
-[huawei@n148 perl]$ perl 1.pl
-abc
-abc
-abc
-def
-def
-abc}def
-abc{def
-daef
-ab{cd}e
-
+print qx{date};
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+Mon Dec 20 01:09:58 CST 2021
+```
+- qr 用于创建模式字符串（注意不是整个正则）
+```
+my $str = "Who are Who you?";
+my $pa=qr/W\w+/;
+my $count=$str =~ s/$pa/What/g; 
+print "$str\t$count\n";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+What are What you?      2
 ```
 ## 范围运算符 .. 与 ...
 可以使用两点运算符..或三点运算符...表示一个范围。在列表上下文中两者等价，在标量上下文中两者不等价。
@@ -5945,6 +5938,8 @@ use File::Basename qw//;
 ```
 [huawei@n148 perl]$ perldoc File::Basename
 ```
+## 创建模块
+待完善
 ## File::Basename
 ```
 只取文件名 my $filename_only = basename($filename);
@@ -5962,7 +5957,124 @@ say "$base, $path, $suffix";
 1, /home/huawei/playground/perl/, .pl
 ```
 
+# 多文件
+## eval方式插入代码
+能用的方式，但不够漂亮。执行多次会出现代码重定义（未测试）
+```
+a.pm内定义函数
+sub myadd
+{
+	my $a=shift;
+	my $b=shift;
+	$a+$b;
+}
 
+
+b.pl内加载并调用函数
+sub loadmyadd{
+	open my $more_fh, '<', '1.pl';
+	undef $/;
+	my $more_code=<$more_fh>;		# $more_code里是全部代码内容
+	close $more_fh;
+	eval $more_code;				# 相当于把代码都添加进来
+	die $@ if $@;					# 断言代码没问题
+}
+loadmyadd;
+print myadd(10,30);
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+40
+```
+## do方式导入
+执行多次会出现代码重定义（未测试）
+```
+do q/mod.pm/;
+die $@ if $@;	# 断言代码没问题
+print myadd(10,30);
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+40
+```
+## require方式导入
+此方式最佳，不会出现代码重定义
+```
+mod.pm内定义函数，注意被require的文件末尾要有1（是个真值即可）否则报错
+sub myadd
+{
+	my $a=shift;
+	my $b=shift;
+	$a+$b;
+}
+1
+
+
+require q/mod.pm/;
+print myadd(10,30);
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+40
+```
+## 命名空间解决同名问题
+* require多个文件里具有同名函数时候，pl文件中默认使用靠下的require文件里的函数
+* 当require和pl文件里具有同名函数时候，默认使用的是require里的函数
+* 靠包名来解决此问题，包名建议大写。如下
+```
+mod1.pm文件，注意要写包名package m1;
+#!/usr/bin/perl
+package m1;
+sub myadd
+{
+	my $a=shift;
+	my $b=shift;
+	print "mod1\n";
+	$a+$b;
+}
+
+1
+
+
+
+mod2.pm文件
+#!/usr/bin/perl
+package m2;
+sub myadd
+{
+	my $a=shift;
+	my $b=shift;
+	print "mod2\n";
+	$a+$b;
+}
+
+1
+
+
+调用包的pl文件，调用自身可以再加作用域main（其实可以不用）
+sub myadd
+{
+	my $a=shift;
+	my $b=shift;
+	print "pl\n";
+	$a+$b;
+}
+require q/mod2.pm/;
+require q/mod1.pm/;
+
+print m2::myadd(10,30), "\n";
+print m1::myadd(10,30), "\n";
+print myadd(10,30), "\n";
+print main::myadd(10,30), "\n";
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+mod2
+40
+mod1
+40
+pl
+40
+pl
+40
+```
+## 包变量
+待完善
 # 句柄
 句柄实际上包含文件、管道、进程和套接字的读写。
 ## open、写入文本、close
