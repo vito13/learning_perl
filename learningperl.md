@@ -5914,24 +5914,34 @@ rename 'oldfile', 'newfile';
 ```
 ## pack 和 unpack 函数
 用于二进制文件
-# 模块操作
-## 安装
+# 模块
+模块有两种类型
+* 传统模块  
+  定义子例程和变量，供调用者导入和使用
+* 面向对象模块  
+  相当于类定义，可以通过方法调用来访问
+## 换国内源
+	1 在 http://mirrors.cpan.org/ 搜china，找到合适的镜像地址。
+	2 vi /home/huawei/.cpan/CPAN/MyConfig.pm
+	3 将'urllist' => [q[http://mirrors.neusoft.edu.cn/cpan/]], 中的地址换为新地址
+	4 保存完毕
+## 安装模块
 其实也可以手动安装，也就是下载解压编译安装...待完善
 ```
 [huawei@n148 perl]$ cpan -a						# 查看已安装模块
 [huawei@n148 perl]$ cpan -i Term::ANSIScreen	# 安装模块
-[huawei@n148 perl]$ preldoc Term::ANSIScreen	# 查看模块说明
+[huawei@n148 perl]$ perldoc Term::ANSIScreen	# 查看模块说明
 ```
-## 导入模块
+## 加载模块
 ```
 use File::Basename;
 ```
-## 导入函数
+## 加载函数
 ```
 use File::Basename qw/basename/;
 say File::Basename::basename __FILE__;
 
-还可以不导入函数
+还可以不加载函数
 use File::Basename qw//;
 ```
 ## 查看文档
@@ -5939,23 +5949,71 @@ use File::Basename qw//;
 [huawei@n148 perl]$ perldoc File::Basename
 ```
 ## 创建模块
-待完善
-## File::Basename
-```
-只取文件名 my $filename_only = basename($filename);
-取路径部分 my $path_only = dirname($filename); 
+先安装库用于自动化生成框架文件
+		
+	
+	
+### 使用ExtUtils::MakeMaker创建
+使用h2xs命令生成基本框架
 
-my ($base, $path, $suffix) = File::Basename::fileparse( __FILE__); 
-say "$base, $path, $suffix";
-[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
-1.pl, /home/huawei/playground/perl/, 
+	[huawei@n148 perl]$ cpan -i ExtUtils::MakeMaker
+	[huawei@n148 perl]$ h2xs -AX -n Animal
+	[huawei@n148 perl]$ tree ./Animal/
+		./Animal/
+		├── Changes
+		├── lib
+		│   └── Animal.pm
+		├── Makefile.PL
+		├── MANIFEST
+		├── README
+		└── t
+			└── Animal.t
 
-第二个参数可以用于正则过滤
-my ($base, $path, $suffix) = File::Basename::fileparse( __FILE__, qr{.pl}); 
-say "$base, $path, $suffix";
-[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
-1, /home/huawei/playground/perl/, .pl
-```
+		2 directories, 6 files
+### 使用Module::Build创建
+
+	[huawei@n148 perl]$ cpan -i  Module::Build
+	[huawei@n148 perl]$ cpan -i  Module::Starter
+	[huawei@n148 perl]$ module-starter --module=Foo::Bar,Foo::Bat     --author="Andy Lester" --email=andy@petdance.com
+	[huawei@n148 perl]$ tree ./Foo-Bar/./Foo-Bar/
+		├── Changes
+		├── ignore.txt
+		├── lib
+		│   └── Foo
+		│       ├── Bar.pm
+		│       └── Bat.pm
+		├── Makefile.PL
+		├── MANIFEST
+		├── README
+		├── t
+		│   ├── 00-load.t
+		│   ├── manifest.t
+		│   ├── pod-coverage.t
+		│   └── pod.t
+		└── xt
+			└── boilerplate.t
+
+		4 directories, 12 files
+### 添加到模块
+生成Animal目录，里面有4个pm文件Animal,Cow,Horse,Mouse
+
+	[huawei@n148 perl]$ module-starter --module=Animal,Cow,Horse,Mouse     --author="Andy Lester" --email=andy@petdance.com
+如果还要再添加新的pm则使用语法如下
+	
+	测试了一下失败了，perl进阶p169，待需要时候再查语法吧。
+### 编译与测试
+
+	[huawei@n148 Animal]$ perl Makefile.PL # 用于生成真正的makefile
+	[huawei@n148 Animal]$ make # 编译，并cp对应pm与自动创建的doc到blib子目录（此目录也是自动创建）
+	[huawei@n148 Animal]$ make test # 测试
+	[huawei@n148 Animal]$ make disttest	# 在新备份的子目录里测试
+	[huawei@n148 Animal]$ make dist	# 测试打包到压缩文件，为了接下来的分发
+
+### 编辑POD
+- 可以直接再生成的pm文件中对应的段落插入说明性的文字内容
+- 可以使用字体信息
+- 编辑后可以使用podchecker Animal/lib/Animal.pm进行检查
+
 
 # 多文件
 ## eval方式插入代码
@@ -6075,6 +6133,84 @@ pl
 ```
 ## 包变量
 待完善
+
+
+# 包、命名空间、符号表、类型团、GLOB
+## 概念
+* 包与命名空间
+  * Perl中，命名空间称为包。
+  * 通常包只是一个文件，在一个文件中放一个包，文件名和包名相同，并且使用.pm（perl module）作为扩展名。
+  * 包是独立于文件的，一个文件中可以有多个包，一个包也可能跨多个文件。所以一个.pm不一定只有一个命名空间。
+  * 包提供了基本结构模块，基于这些构造模块，可以构建更高层的模块和类概念。
+* 符号表 symbol table
+  * 包的内容称为符号表。一个包就是一个符号表。
+  * 符号表存储在一个散列中，这个散列与包同名，并且要在后面追加 : : 。
+  * main符号表就是%main::，由于main是默认的包，所以可以写作%::。
+  * 符号表的键是符号标识符，值是对应的类型团。
+* 类型团 typeglob
+  * 类型团typeglob是Perl中的一个特殊类型，类型前缀是*，表示所有类型。
+  * *foo包含$foo @foo %foo &foo，以及foo的多种其他表示对应的值。
+  * 类型团是可理解成一个散列结构的数据结构，其键是固定的，包含SCALAR ARRAY HASH CODE GLOB IO NAME PACKAGE。
+* GLOB
+  * 类型团数据的数据类型就是GLOB。
+  * 输出类型团的数据类型 our a = 1; print "type of typeglob: ", ref \*main::a; # type of typeglob: GLOB
+  * 访问类型团，证明其实散列结构 our a = 1; print ${*main::a{SCALAR}}, ${*a{SCALAR}}; # 11
+* 变量和函数
+  * 命名空间中的变量和函数，可以通过符号表的类型团访问。	
+  * 但是符号表机制对词法作用域变量不可见。（my state是词法作用域变量）
+```
+our $val = 1;
+my %hash = qw(a aa b bb c cc);
+
+sub phash {
+    print "\n" . $hash{ +shift } . "\n";
+}
+
+## 打印符号表
+print "打印符号表:\n";
+foreach my $key (keys %main::) {
+    no strict;
+    local *sys = $main::{$key};
+    print "KEY\t$key\t\tVALUE:\t @{[*sys]} \n";
+}
+
+## 类型团的数据类型就是GLOB
+print "\n类型团的数据类型就是GLOB: ";
+print ref \*main::val;  ## GLOB
+## 从符号表中读取变量
+print "\n从符号表中读取变量:  ";
+print ${$main::{val}}, ${*main::val{SCALAR}},$main::val; ## 111
+## 类型团是一个散列，存储的值是引用
+print "\n类型团是一个散列，存储的值是引用:  ";
+print *main::phash{CODE}, "\n"; ## CODE(0x6b4718)
+
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+打印符号表:
+KEY     version::               VALUE:   *main::version:: 
+KEY     /               VALUE:   *main::/ 
+KEY     stderr          VALUE:   *main::stderr 
+KEY     SIG             VALUE:   *main::SIG 
+.
+.
+.
+.
+.
+.
+KEY     @               VALUE:   *main::@ 
+KEY     STDOUT          VALUE:   *main::STDOUT 
+KEY     ]               VALUE:   *main::] 
+KEY                     VALUE:   *main:: 
+KEY     threads::               VALUE:   *main::threads:: 
+KEY     Dumper          VALUE:   *main::Dumper 
+KEY     bytes::         VALUE:   *main::bytes:: 
+KEY     STDERR          VALUE:   *main::STDERR 
+KEY     _<Dumper.c              VALUE:   *main::_<Dumper.c 
+
+类型团的数据类型就是GLOB: GLOB
+从符号表中读取变量:  111
+类型团是一个散列，存储的值是引用:  CODE(0x27212a0)
+```
 # 句柄
 句柄实际上包含文件、管道、进程和套接字的读写。
 ## open、写入文本、close
@@ -6880,3 +7016,92 @@ foreach ( @names ) {
 ```
 # List::Util模块
 # Regexp::Common
+# File::Basename
+```
+只取文件名 my $filename_only = basename($filename);
+取路径部分 my $path_only = dirname($filename); 
+
+my ($base, $path, $suffix) = File::Basename::fileparse( __FILE__); 
+say "$base, $path, $suffix";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+1.pl, /home/huawei/playground/perl/, 
+
+第二个参数可以用于正则过滤
+my ($base, $path, $suffix) = File::Basename::fileparse( __FILE__, qr{.pl}); 
+say "$base, $path, $suffix";
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+1, /home/huawei/playground/perl/, .pl
+```
+
+# 面向对象
+
+
+```
+1 建立工程,会生成3个pm
+[huawei@n148 perl]$ module-starter --module=Cow,Horse,Sheep     --author="Andy Lester" --email=andy@petdance.com --force
+
+2 每个pm中修改fun1为speak方法，打印对应的名称speak
+sub speak {
+	print "cow speak\n";
+}
+
+3 库目录同层添加一个pl文件，通过包名调用方法
+
+#!/usr/bin/perl
+use Cow;
+use Horse;
+use Sheep;
+
+Cow::speak();
+Horse::speak();
+Sheep::speak();
+
+4 只能终端手动执行才可运行，使用-I指定库，然后再运行pl，还得是全路径
+[huawei@n148 perl]$ perl -I/home/huawei/playground/perl/Cow/lib /home/huawei/playground/perl/2.pl
+cow speak
+horse speak
+sheep speak
+
+5 奇技淫巧的取地址方式调用
+use Cow;
+use Horse;
+use Sheep;
+my @pasture=qw/Cow Horse Sheep/;
+foreach my $beast(@pasture){
+	no strict 'refs';
+	&{$beast."::speak"};
+}
+
+[huawei@n148 perl]$ perl -I/home/huawei/playground/perl/Cow/lib /home/huawei/playground/perl/2.pl
+cow speak
+horse speak
+sheep speak
+
+
+6 通过类名方式调用
+use Cow;
+use Horse;
+use Sheep;
+Cow->speak();
+Horse->speak();
+Sheep->speak();
+
+[huawei@n148 perl]$ perl -I/home/huawei/playground/perl/Cow/lib /home/huawei/playground/perl/2.pl
+cow speak
+horse speak
+sheep speak
+
+7 基于类名形式循环调用
+use Cow;
+use Horse;
+use Sheep;
+
+my @pasture=qw/Cow Horse Sheep/;
+foreach (@pasture){
+	$_->speak();
+}
+[huawei@n148 perl]$ perl -I/home/huawei/playground/perl/Cow/lib /home/huawei/playground/perl/2.pl
+cow speak
+horse speak
+sheep speak
+```
