@@ -5948,68 +5948,169 @@ use File::Basename qw//;
 ```
 [huawei@n148 perl]$ perldoc File::Basename
 ```
-## 创建模块
-先安装库用于自动化生成框架文件
-		
+## 创建模块 Module::Starter
+Module::Starter模块提供了一个命令行程序module-starter，它可以用来构建模块。先安装之
+```
+[huawei@n148 perl]$ cpan -i Module::Starter
+```
+常用参数选项如下：
+```
+--module=module  项目的主模块名 (required, repeatable)
+--distro=name    项目名 (optional)
+--dir=dirname    新的项目会放到哪个目录中 (optional)
+
+--builder=module 使用哪个模块进行构建，可用的值有： 'ExtUtils::MakeMaker' 和 'Module::Build'
+--eumm           和 --builder=ExtUtils::MakeMaker 的功能相同
+--mb             和 --builder=Module::Build 的功能相同
+--mi             和 --builder=Module::Install 的功能相同
+
+--author=name    作者是名字 (taken from getpwuid if not provided)
+--email=email    作者的电子邮件 (taken from EMAIL if not provided)
+
+--ignores=type   需要忽略的文件类型 (repeatable)
+--license=type   开源许可证
+                 (default is artistic2)
+--minperl=ver    支持的最小的Perl版本 (optional  default is 5.006)
+
+--fatalize       生成warnings代码,指定所有警告都会引发致命错误（use warnings FATAL => 'all'）
+
+--verbose        打印详细的工作日志
+--force          强制执行，覆盖已经存在的文件和文件夹
+
+--help           显示帮助信息
+```
+安装后构建一个名为My::Number::Utilities的模块(模块可以不用存在，它会自动创建一些文件结构)
+
 	
+
+	[huawei@n148 perl]$ module-starter --module "My::Number::Utilities" --author="ma long shuai" --email="79123@qq.com"
+	Added to MANIFEST: Changes
+	Added to MANIFEST: ignore.txt
+	Added to MANIFEST: lib/My/Number/Utilities.pm
+	Added to MANIFEST: Makefile.PL
+	Added to MANIFEST: MANIFEST
+	Added to MANIFEST: README
+	Added to MANIFEST: t/00-load.t
+	Added to MANIFEST: t/manifest.t
+	Added to MANIFEST: t/pod-coverage.t
+	Added to MANIFEST: t/pod.t
+	Added to MANIFEST: xt/boilerplate.t
+	Created starter directories and files
+
+	[huawei@n148 perl]$ tree My-Number-Utilities/
+	My-Number-Utilities/
+	├── Changes
+	├── ignore.txt
+	├── lib
+	│   └── My
+	│       └── Number
+	│           └── Utilities.pm
+	├── Makefile.PL
+	├── MANIFEST
+	├── README
+	├── t
+	│   ├── 00-load.t
+	│   ├── manifest.t
+	│   ├── pod-coverage.t
+	│   └── pod.t
+	└── xt
+		└── boilerplate.t
+
+	5 directories, 11 files	
+
+项目文件说明：
+
+    Changes：包含程序版本的变化信息
+    MANIFEST：列出发布的模块版本中必须包含的每个文件
+    Makefile.PL：是Perl程序创建的Makefile，Makefile文件中包含了如何编译和构建程序的说明。如果不是非常熟悉Makefile格式，千万不能修改，一个tab和空格的不同可能都会导致编译出错。
+    README：包含了如何构建和安装程序的文档，一般来说，程序的说明文档会嵌入在此文件中。
+    ignore.txt：是类似于git/svn版本控制系统的文件忽略模板，你可能会经常拷贝该文件到你的版本控制系统中。
+    lib/：该目录包含了实际要安装的模块。
+    t/：该目录包含了模块测试相关的文件。
+
+	上面的文件可能已经包含了一些内容，例如lib/My/Number/Utilities.pm文件中已经自动包含了一些编译指示，还包含了默认的pod文档。
+
+默认情况下，Module::Starter构建的模式是Makefile.PL，如果想要构建Build.PL，可以加上--builder=Module::Build或者无需选项参数的选项--mb：
 	
-### 使用ExtUtils::MakeMaker创建
-使用h2xs命令生成基本框架
+	两种效果一样，一个简写一个全称。。。
 
-	[huawei@n148 perl]$ cpan -i ExtUtils::MakeMaker
-	[huawei@n148 perl]$ h2xs -AX -n Animal
-	[huawei@n148 perl]$ tree ./Animal/
-		./Animal/
-		├── Changes
-		├── lib
-		│   └── Animal.pm
-		├── Makefile.PL
-		├── MANIFEST
-		├── README
-		└── t
-			└── Animal.t
+	[huawei@n148 perl]$ module-starter --mb --module "My::Number::Utilities" --author="ma long shuai" --email="79123@qq.com" --force
 
-		2 directories, 6 files
-### 使用Module::Build创建
+	[huawei@n148 perl]$ module-starter --builder=Module::Build --module "My::Number::Utilities" --author="ma long shuai" --email="79123@qq.com" --force
+## 默认项配置文件
+创建如下文件后可以省略部分选项。再执行module-stater时，只需一个--module选项即可
+```
+[huawei@n148 perl]$ cat $HOME/.module-starter/config
+author: ma long shuai
+email: 79123@qq.com
+builder: Module::Build
+verbose: 1
 
-	[huawei@n148 perl]$ cpan -i  Module::Build
-	[huawei@n148 perl]$ cpan -i  Module::Starter
-	[huawei@n148 perl]$ module-starter --module=Foo::Bar,Foo::Bat     --author="Andy Lester" --email=andy@petdance.com
-	[huawei@n148 perl]$ tree ./Foo-Bar/./Foo-Bar/
-		├── Changes
-		├── ignore.txt
-		├── lib
-		│   └── Foo
-		│       ├── Bar.pm
-		│       └── Bat.pm
-		├── Makefile.PL
-		├── MANIFEST
-		├── README
-		├── t
-		│   ├── 00-load.t
-		│   ├── manifest.t
-		│   ├── pod-coverage.t
-		│   └── pod.t
-		└── xt
-			└── boilerplate.t
+[huawei@n148 perl]$ module-starter --module=My::Module
+```
+## 添加pm到现有模块
+先安装必备包，然后再配置文件中加入一行
+```
+[huawei@n148 perl]$ cpan -i Module::Starter::AddModule
+[huawei@n148 perl]$ cat $HOME/.module-starter/config
+author: ma long shuai
+email: 79123@qq.com
+builder: Module::Build
+verbose: 1
+plugins: Module::Starter::AddModule	# 新加此行
 
-		4 directories, 12 files
-### 添加到模块
-生成Animal目录，里面有4个pm文件Animal,Cow,Horse,Mouse
 
-	[huawei@n148 perl]$ module-starter --module=Animal,Cow,Horse,Mouse     --author="Andy Lester" --email=andy@petdance.com
-如果还要再添加新的pm则使用语法如下
-	
-	测试了一下失败了，perl进阶p169，待需要时候再查语法吧。
-### 编译与测试
+如下--dist指定要添加到的模块目录，如果已经在Animal-Rule目录下，则使用相对路径--dist=.即可。
+[huawei@n148 perl]$ module-starter --module=Sheep --dist=Animal-Rule
+```
 
-	[huawei@n148 Animal]$ perl Makefile.PL # 用于生成真正的makefile
-	[huawei@n148 Animal]$ make # 编译，并cp对应pm与自动创建的doc到blib子目录（此目录也是自动创建）
-	[huawei@n148 Animal]$ make test # 测试
-	[huawei@n148 Animal]$ make disttest	# 在新备份的子目录里测试
-	[huawei@n148 Animal]$ make dist	# 测试打包到压缩文件，为了接下来的分发
 
-### 编辑POD
+## 编译与测试
+分为两种不同的形式处理
+* Makefile.PL  
+```
+	perl Makefile.PL	# 用于生成真正的makefile
+	make	# 编译，并cp对应的pm文件与自动创建的doc到blib子目录（此目录也是自动创建）
+	make test	# 测试
+	make disttest	# 在新备份的子目录里测试
+	make install
+	make dist	# 测试打包到压缩文件，为了接下来的分发
+```
+* Build.PL
+```
+	perl Build.PL
+	./Build
+	./Build test
+	./Build install
+	./Build dist
+```
+## 改写Makefile.PL与Build.PL
+虽然Makefile.PL和Build.PL不建议修改，但小心翼翼点也可以修改。可以通过此2文件添加依赖包与测试项，见  
+https://blog.csdn.net/weixin_34124577/article/details/86133529
+## 构建多个模块
+会以第一个模块名称作为顶级目录，然后在lib中创建各模块文件
+```
+[huawei@n148 perl]$ module-starter --module "Animal,Cow,Horse,Mouse" --author="ma long shuai" --email="79123@qq.com" --force
+Animal/
+├── Changes
+├── lib
+│   ├── Animal.pm
+│   ├── Cow.pm
+│   ├── Horse.pm
+│   └── Mouse.pm
+
+[huawei@n148 perl]$ module-starter --module "Animal::Rule,Cow::Rule,Horse,Mouse" --author="ma long shuai" --email="79123@qq.com" --force
+Animal-Rule/
+├── Changes
+├── lib
+│   ├── Animal
+│   │   └── Rule.pm
+│   ├── Cow
+│   │   └── Rule.pm
+│   ├── Horse.pm
+│   └── Mouse.pm
+```
+## 编辑POD
 - 可以直接再生成的pm文件中对应的段落插入说明性的文字内容
 - 可以使用字体信息
 - 编辑后可以使用podchecker Animal/lib/Animal.pm进行检查
@@ -7034,13 +7135,13 @@ say "$base, $path, $suffix";
 ```
 
 # 面向对象
-
-
+## 从定义类到简单基类
+下面的命令使用了缺省参数，见$HOME/.module-starter/config内的配置
 ```
 1 建立工程,会生成3个pm
-[huawei@n148 perl]$ module-starter --module=Cow,Horse,Sheep     --author="Andy Lester" --email=andy@petdance.com --force
+[huawei@n148 perl]$ module-starter --module=Cow,Horse,Sheep  --dir=testclass    
 
-2 每个pm中修改fun1为speak方法，打印对应的名称speak
+2 每个pm中添加speak方法，打印对应的名称speak
 sub speak {
 	print "cow speak\n";
 }
@@ -7057,7 +7158,7 @@ Horse::speak();
 Sheep::speak();
 
 4 只能终端手动执行才可运行，使用-I指定库，然后再运行pl，还得是全路径
-[huawei@n148 perl]$ perl -I/home/huawei/playground/perl/Cow/lib /home/huawei/playground/perl/2.pl
+[huawei@n148 perl]$ perl -I/home/huawei/playground/perl/testclass/lib /home/huawei/playground/perl/2.pl
 cow speak
 horse speak
 sheep speak
@@ -7072,7 +7173,7 @@ foreach my $beast(@pasture){
 	&{$beast."::speak"};
 }
 
-[huawei@n148 perl]$ perl -I/home/huawei/playground/perl/Cow/lib /home/huawei/playground/perl/2.pl
+[huawei@n148 perl]$ perl -I/home/huawei/playground/perl/testclass/lib /home/huawei/playground/perl/2.pl
 cow speak
 horse speak
 sheep speak
@@ -7086,7 +7187,7 @@ Cow->speak();
 Horse->speak();
 Sheep->speak();
 
-[huawei@n148 perl]$ perl -I/home/huawei/playground/perl/Cow/lib /home/huawei/playground/perl/2.pl
+[huawei@n148 perl]$ perl -I/home/huawei/playground/perl/testclass/lib /home/huawei/playground/perl/2.pl
 cow speak
 horse speak
 sheep speak
@@ -7100,8 +7201,90 @@ my @pasture=qw/Cow Horse Sheep/;
 foreach (@pasture){
 	$_->speak();
 }
-[huawei@n148 perl]$ perl -I/home/huawei/playground/perl/Cow/lib /home/huawei/playground/perl/2.pl
+[huawei@n148 perl]$ perl -I/home/huawei/playground/perl/testclass/lib /home/huawei/playground/perl/2.pl
 cow speak
 horse speak
 sheep speak
+
+8 向OO的形式再推进一步，修改每个类的函数实现如下，各自仅sound里的实现不同。调用处不变，结果依然相同。此时speak可以单独提取出来了。。。
+
+sub sound {
+	'cow sound';
+}
+sub speak {
+	my $class=shift;
+	print "$class: ", $class->sound, "\n";
+}
+
+[huawei@n148 perl]$ perl -I/home/huawei/playground/perl/testclass/lib /home/huawei/playground/perl/2.pl
+Cow: cow sound
+Horse: horse sound
+Sheep: sheep sound
+
+9 提取出基类，通过基类提供的抽象方法传递不同的参数实现初级多态
+先添加基类到工程
+[huawei@n148 perl]$ module-starter --module=Animal --dist=testclass
+
+基类animal添加函数如下
+sub sound {
+	die 'you must rewrite';
+}
+sub speak {
+	my $class=shift;
+	print "$class: ", $class->sound, "\n";
+}
+
+每个子类在文件顶部分别修改为如下
+use Animal;
+our @ISA=qw/Animal/;  可以再升级为use parent qw/Animal/;代替定义@ISA
+sub sound {	'cow sound';}
+
+主调用逻辑如下
+use Cow;
+use Horse;
+use Sheep;
+my @pasture=qw/Cow Horse Sheep/;
+foreach (@pasture){
+	Animal::speak($_);
+}
+Animal::speak('Cow');
+Animal::speak('Horse');
+Animal::speak('Sheep');
+
+[huawei@n148 perl]$ perl -I/home/huawei/playground/perl/testclass/lib /home/huawei/playground/perl/2.pl
+Cow: cow sound
+Horse: horse sound
+Sheep: sheep sound
+Cow: cow sound
+Horse: horse sound
+Sheep: sheep sound
+```
+## 覆盖基类方法
+```
+添加mouse类
+[huawei@n148 perl]$ module-starter --module=Mouse --dist=testclass
+在mouse代码中不继承animal（即使继承下面两句也正常运行），即使与animal拥有相同的方法名称也不会有关系,使用的时候如下即可：
+use Mouse;
+Mouse->speak();
+```
+## 子类调用父类方法 SUPER
+上例中的mouse代码修改为如下
+```
+use Animal;
+use parent qw/Animal/;
+sub sound {	'mouse sound';}
+sub speak {
+	my $class=shift;
+	$class->SUPER::speak;
+	print "...mouse.. \n";
+}
+
+
+use Mouse;
+Mouse->speak();
+
+此处先调用了父类的方法，后又执行了自己的逻辑
+[huawei@n148 perl]$ perl -I/home/huawei/playground/perl/testclass/lib /home/huawei/playground/perl/2.pl
+Mouse: mouse sound
+...mouse.. 
 ```
