@@ -468,7 +468,23 @@ abc15
 abc8
 
 ```
+## BEGIN、END
+BEGIN是在Perl语言运行最开始运行的块，END是在Perl语言运行最后运行的块，和块所在位置无关
+```
+#!/usr/bin/perl
+print"pid=$$\n";  
+print"pname=$0\n";  
+print"Startmainrunninghere\n";  
+BEGIN{print"BEGIN\n";}  
+END{print"END\n";}  
 
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+BEGIN
+pid=30241
+pname=/home/huawei/playground/perl/2.pl
+Startmainrunninghere
+END
+```
 ## 使用警告
 ```
 use warnings;
@@ -5932,22 +5948,131 @@ rename 'oldfile', 'newfile';
 [huawei@n148 perl]$ cpan -i Term::ANSIScreen	# 安装模块
 [huawei@n148 perl]$ perldoc Term::ANSIScreen	# 查看模块说明
 ```
-## 加载模块
-```
-use File::Basename;
-```
-## 加载函数
-```
-use File::Basename qw/basename/;
-say File::Basename::basename __FILE__;
-
-还可以不加载函数
-use File::Basename qw//;
-```
 ## 查看文档
+安装模块后，都会有对应的文档，可以通过perldoc MODULE_NAME来获取模块的使用帮助。
 ```
 [huawei@n148 perl]$ perldoc File::Basename
 ```
+## 加载模块
+* 使用use来装载模块
+* use语句是程序编译期间执行的
+* 通常use写在程序的开头，但非必须
+* use模块后其内的属性就会导入到当前程序的名称空间供当前程序使用
+* 可以全导入、全不导入或导入一部分
+* 有些模块比较复杂，会提供标签分组功能（其实是一堆函数集合）。可以导入时指定标签
+```
+全导入
+use File::Basename;
+
+导入一部分
+use File::Basename qw(basename dirname);
+say File::Basename::basename __FILE__;
+
+全不导入
+use File::Basename qw//;
+use File::Basename ();
+
+指定标签
+use CGI qw(:all);
+```
+
+## 模块查找路径 @INC
+默认情况下，perl将从@INC指定的路径中查找模块，它就像shell的PATH环境变量一样。
+```
+[huawei@n148 perl]$  perl -e 'foreach (@INC){print "$_\n"};'
+/home/huawei/perl5/lib/perl5/5.16.3/x86_64-linux-thread-multi
+/home/huawei/perl5/lib/perl5/5.16.3
+/home/huawei/perl5/lib/perl5/x86_64-linux-thread-multi
+/home/huawei/perl5/lib/perl5
+/home/huawei/perl5/lib/perl5/5.16.3/x86_64-linux-thread-multi
+/home/huawei/perl5/lib/perl5/5.16.3
+/home/huawei/perl5/lib/perl5/x86_64-linux-thread-multi
+/home/huawei/perl5/lib/perl5
+/home/huawei/perl5/lib/perl5/5.16.3/x86_64-linux-thread-multi
+/home/huawei/perl5/lib/perl5/5.16.3
+/home/huawei/perl5/lib/perl5/x86_64-linux-thread-multi
+/home/huawei/perl5/lib/perl5
+/usr/local/lib64/perl5
+/usr/local/share/perl5
+/usr/lib64/perl5/vendor_perl
+/usr/share/perl5/vendor_perl
+/usr/lib64/perl5
+/usr/share/perl5
+.
+```
+如果是手动安装的包，或者安装到了一个非默认的查找路径下(例如不同用户安装到了不同家目录下)，这时可以通过在shell中设置PERL5LIB环境变量，perl会临时从这个环境变量中去查找模块。
+```
+[huawei@n148 perl]$ echo $PERL5LIB
+/home/huawei/perl5/lib/perl5:/home/huawei/perl5/lib/perl5:/home/huawei/perl5/lib/perl5
+```
+## 手动指定use路径
+```
+库文件
+[huawei@n148 perl]$ cat lib/newlib.pm 
+package Newlib;
+use 5.006;
+use strict;
+use warnings;
+our $VERSION = '0.01';
+sub myfun {
+	my ($a,$b)=(shift,shift);
+	return $a+$b;
+}
+1;
+```
+* 在代码中手动指定加载的lib路径地址
+	```
+	#!/usr/bin/perl
+	use lib "./lib";	# 可以相对或绝对路径，要写在文件最上面
+	use newlib;
+	print Newlib::myfun(10,20), "\n";
+	[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+	30
+	```
+* 运行perl命令使用参数-I
+	```
+	use newlib;	 # 脚本中不设置库文件位置
+	print Newlib::myfun(10,20), "\n";
+
+	[huawei@n148 perl]$ perl -Ilib test.pl  # 手动运行perl命令参数I指定路径./lib/
+	30
+	```
+* 将-I写入脚本中
+	```
+	#!/usr/bin/perl -Ilib 在shebang里写入-I参数，效果与上一致
+	use newlib;
+	print Newlib::myfun(10,20), "\n";
+	[huawei@n148 perl]$ /usr/bin/perl -Ilib  "/home/huawei/playground/perl/2.pl"
+	30
+	```
+* 在BEGIN块中加入@INC
+	```
+	#!/usr/bin/perl
+	BEGIN {
+		unshift(@INC, "lib");
+	}
+	use newlib;
+	print Newlib::myfun(10,20), "\n";
+	
+	[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+	30
+	```	
+* 添加路径到PERL5LIB，但结束session即失效（export特点导致）
+	```
+	[huawei@n148 perl]$ echo $PERL5LIB  # 查看$PERL5LIB库路径变量
+	/home/huawei/perl5/lib/perl5:/home/huawei/perl5/lib/perl5:/home/huawei/perl5/lib/perl5
+	[huawei@n148 perl]$ export PERL5LIB=$PERL5LIB:lib	# 添加路径，可以相对但最好绝对
+	[huawei@n148 perl]$ echo $PERL5LIB
+	/home/huawei/perl5/lib/perl5:/home/huawei/perl5/lib/perl5:/home/huawei/perl5/lib/perl5:lib	# 相对就这样的了，且只能在固定位置运行才能找到相对lib位置
+
+	#!/usr/bin/perl
+	use newlib;
+	print Newlib::myfun(10,20), "\n";
+
+	[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+	30
+	```
+
 ## 创建模块 Module::Starter
 Module::Starter模块提供了一个命令行程序module-starter，它可以用来构建模块。先安装之
 ```
@@ -6026,7 +6151,8 @@ Module::Starter模块提供了一个命令行程序module-starter，它可以用
     README：包含了如何构建和安装程序的文档，一般来说，程序的说明文档会嵌入在此文件中。
     ignore.txt：是类似于git/svn版本控制系统的文件忽略模板，你可能会经常拷贝该文件到你的版本控制系统中。
     lib/：该目录包含了实际要安装的模块。
-    t/：该目录包含了模块测试相关的文件。
+    t/：代码测试目录，该目录包含了模块测试相关的文件。
+	xt/：作者测试目录。
 
 	上面的文件可能已经包含了一些内容，例如lib/My/Number/Utilities.pm文件中已经自动包含了一些编译指示，还包含了默认的pod文档。
 
@@ -6065,7 +6191,7 @@ plugins: Module::Starter::AddModule	# 新加此行
 ```
 
 
-## 编译与测试
+## make、test、install
 分为两种不同的形式处理
 * Makefile.PL  
 ```
@@ -6114,6 +6240,23 @@ Animal-Rule/
 - 可以直接再生成的pm文件中对应的段落插入说明性的文字内容
 - 可以使用字体信息
 - 编辑后可以使用podchecker Animal/lib/Animal.pm进行检查
+## TAP测试
+* 使用工具创建的模块目录中的t与xt为测试脚本目录
+* 测试脚本均为.t文件
+* 使用Test::More模块进行测试
+* 启动方式如下
+	```
+	测试 oo-load.t
+	[huawei@n148 testclass]$ ./Build  先编译
+	[huawei@n148 testclass]$ perl -Iblib/lib -T t/00-load.t
+	ok 1 - use Cow;
+	ok 2 - use Horse;
+	ok 3 - use Sheep;
+	1..3
+	# Testing Cow 0.01, Perl 5.016003, /usr/bin/perl
+	```
+* 如后期又添加pm文件，则需要手动修改oo-load.t用于测试所有的use逻辑
+* pod测试用于检测pod是否完整无误，需要安装Test::Pod与Test::Pod::Coverage模块，t目录下的pod.t与pod-coverage.t用于此测试
 
 
 # 多文件
@@ -7157,7 +7300,7 @@ Cow::speak();
 Horse::speak();
 Sheep::speak();
 
-4 只能终端手动执行才可运行，使用-I指定库，然后再运行pl，还得是全路径
+4 只能终端手动执行才可运行，使用-I指定库（-I的作用是将目录加到@INC数组中），然后再运行pl，还得是全路径
 [huawei@n148 perl]$ perl -I/home/huawei/playground/perl/testclass/lib /home/huawei/playground/perl/2.pl
 cow speak
 horse speak
@@ -7288,3 +7431,191 @@ Mouse->speak();
 Mouse: mouse sound
 ...mouse.. 
 ```
+
+# 单元测试
+随着敏捷开发模式的流行，如何快速高效地适应不确定或经常性变化的需求显得越来越重要。要做到这一点，需要在开发过程的各个阶段引入足够的测试。而其中单元测试则是保证代码质量的第一个重要关卡。  
+创建基于 Test::Simple、Test::More 和 Test::Class 的 Perl 单元测试框架
+```
+[huawei@n148 testclass]$ cpan -i Test::Simple
+[huawei@n148 testclass]$ cpan -i Test::More 
+[huawei@n148 testclass]$ cpan -i Test::Class
+
+Hello.pm 用于下面的各类，内容如下
+use strict; 
+use warnings; 
+package Hello; 
+$Hello::VERSION = '0.1'; 
+sub hello { 
+my ($you)=@_; 
+return "Hello, $you!"; 
+} 
+sub bye { 
+my ($you)=@_; 
+return "Goodbye, $you!"; 
+} 
+1;
+```
+## Test::Simple
+这个模块只有一个ok()，语法如下：
+		
+	ok(Arg1, Arg2)
+	Arg1: 布尔表达式，如果这个表达式为真， 这个 testcase passed，否则 failed；
+	Arg2: 这个参数是可选的，用来设置 testcase name。
+```
+use Test::Simple tests => 2; # 设置case数量
+use Hello;	# 要测试的模块
+
+# 调用模块内的方法，然后ok断言
+my $hellostr=Hello::hello('guys'); 
+my $byestr=Hello::bye('guys'); 
+ok($hellostr eq 'Hello, guys!', 'hello() works'); 
+ok($byestr eq 'Goodbye, guys!', 'bye() works'); 
+
+运行测试
+[huawei@n148 testclass]$ perl "/home/huawei/playground/perl/test_simple.pl"
+1..2
+ok 1 - hello() works
+ok 2 - bye() works
+```
+## Test::More
+提供了更多更广泛的对 testcase 是否成功的支持  
+```
+ok 			判断 testcase ok 	
+			ok($got op $expected,$test_name);
+is/isnt 	字符串比较 	
+			is($got,$expected,$test_name);
+  	  		isnt($got,$expected,$test_name);
+like/unlike 正则表达式比较 	
+			like( $got, qr/expected/, $test_name );
+			nlike( $got, qr/expected/, $test_name );
+cmp_ok 		可以指定操作符地比较 	
+			cmp_ok($got,$op,$expected,$test_name);
+can_ok 		被测模块或对象的方法 	
+			can_ok($module,@methods)			
+isa_ok 		对象是否被定义或对象的实例变量确实是已定义的引用 	
+			isa_ok($object,$class,$object_name);
+			isa_ok($subclass,$class,$object_name);		
+subtest 	测试子集 	
+			subtest $name=>\&code;
+pass/fail 	直接给出通过 / 不通过 	
+			pass($test_name);
+  	  		fail($test_name);				
+use_ok 		测试加载模块并导入相应符号是否成功 	
+			BEGIN \{use_ok($module);}
+			BEGIN \{use_ok($module,@imports);}
+is_deeply 	复杂数据结构的比较 	
+			is_deeply($got,$expected,$test_name);		
+new_ok 		判断创建的对象是否 ok 	
+			my $obj=new_ok($class);
+			my $obj=new_ok($class=>@args);
+			my $obj=new_ok($class=>@args,$object_name);					
+```
+介绍其中的几个:
+* is(Arg1, Arg2, Arg3)    
+  类似于 ok(), 用 eq 操作符比较 Arg1 和 Arg2 的值来决定 testcase 成功还是失败。Arg3 是指 testcase 的名字。
+* like( Arg1, Arg2, Arg3 )  
+  Arg2 是一个正则表达式 , 比较 Arg1 是否 匹配 Arg2 正则表达式。Arg3 是指 testcase 的名字。
+* cmp_ok( Arg1, Arg2, Arg3, Arg4 )  
+  cmp_ok() 允许用任何二元操作符（Arg2）比较 Arg1,Arg3. 同样，Arg4 是指 testcase 的名字。另外 cmp_ok() 有个好处，如果 testcase failed, 结果中会报告 Arg1 和 Arg2 在运行中的实际值。
+* can_ok($ module, @methods); can_ok($object, @methods)  
+  can_ok() 判断模块 $module 或对象 $object 能否调用方法 @methods。
+
+```
+use strict; 
+use warnings; 
+use Test::More tests => 4; # case数量
+use Hello;	# 待测包
+
+my $hellostr=Hello::hello('guys'); 
+my $byestr=Hello::bye('guys'); 
+is($hellostr, 'Hello, guys!', 'hello() works'); 
+like($byestr, "/Goodbye/", 'bye() works'); 
+cmp_ok($hellostr, 'eq', 'Hello, guys!', 'bye() works'); 
+can_ok('Hello', qw(hello bye));
+
+[huawei@n148 testclass]$ perl "/home/huawei/playground/perl/test_simple.pl"
+1..4
+ok 1 - hello() works
+ok 2 - bye() works
+ok 3 - bye() works
+ok 4 - Hello->can(...)
+```
+## Test::Class
+
+Test::Class 的常用方法包括
+* Test  
+  参数N代表Test内case数，默认为1，也可为no_plan或空代表任意个
+* setup、teardown  
+  分别在每个普通测试方法之前和之后调用
+* startup、shutdown  
+  在所有测试方法执行之前和之后调用
+* Runtests 方法  
+  通过调用 Test::Class->runtests(); 执行所有从 Test::Class 派生的子类中定义的测试 case
+
+```
+use strict; 
+use File::Util; 
+use Test::More; 
+use base qw(Test::Class); 
+
+my $file; 
+sub init : Test(startup){ 
+ print "开始测试####################################################\n"; 
+ $file = File::Util->new(); 
+} 
+sub shutdown : Test(shutdown){ 
+ print "结束测试####################################################\n"; 
+} 
+sub initial : Test(setup) { 
+ print "----------------------------------------------------开始case\n"; 
+} 
+sub end : Test(teardown) { 
+ print "----------------------------------------------------结束case\n"; 
+} 
+sub test_methods : Test(no_plan) { 
+ can_ok('File::Util', qw(existent line_count list_dir)); 
+} 
+sub test_existent_true : Test(no_plan) { 
+ open(FILE, ">test.txt"); 
+ print FILE "This is a test."; 
+ close FILE; 
+ cmp_ok($file -> existent('test.txt'), "==" ,1, 'test_existent_file_exists'); 
+ unlink "test.txt"; 
+ is($file -> existent('test.txt'), undef, 'test_existent_file_not_exists'); 
+} 
+sub test_line_count : Test { 
+ open(FILE, ">test.txt"); 
+ print FILE "This is a test.\n"; 
+ close FILE; 
+ cmp_ok($file -> line_count('test.txt'), "==" ,1, 'test_line_count = 1'); 
+ open(FILE, ">test.txt"); 
+ print FILE ""; 
+ close FILE; 
+ cmp_ok($file -> line_count('test.txt'), "==" ,0, 'test_line_count = 0'); 
+} 
+Test::Class->runtests();
+
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/test_simple.pl"
+开始测试####################################################
+----------------------------------------------------开始case
+ok 1 - test_existent_file_exists
+ok 2 - test_existent_file_not_exists
+----------------------------------------------------结束case
+----------------------------------------------------开始case
+ok 3 - test_line_count = 1
+ok 4 - test_line_count = 0
+# expected 1 test(s) in main::test_line_count, 2 completed
+----------------------------------------------------结束case
+----------------------------------------------------开始case
+ok 5 - File::Util->can(...)
+----------------------------------------------------结束case
+结束测试####################################################
+1..5
+```
+
+## 测试覆盖率
+Devel::Cover模块可用于对函数、语句、分支、条件各自进行统计，待完善
+
+  
+
