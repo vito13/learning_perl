@@ -436,9 +436,6 @@ while(($i==0)...($i>=0)){
 不用任何引号包围的字符也被Perl当作字符串，这种字符串称为Bareword(裸字符串)。如果开启了warnings功能，使用Bareword时，perl会警告。
 不建议使用bareword。
 ## v-str
-## here doc
-
-
 ## 数值和字符串的转换
 * 当使用运算符+ - * / % -(负号) ++ -- abs以及< <= > >= == !=时，都会将操作数强制转换为数值。
 * 对于字符串来说，当使用.串联字符串或使用x来重复字符串时，会将操作对象强制转换为字符串
@@ -484,6 +481,74 @@ pid=30241
 pname=/home/huawei/playground/perl/2.pl
 Startmainrunninghere
 END
+```
+## our、local、my、state
+### 包域全局 our
+* our操作符用于显式地创建包作用域变量
+* 如果全局变量已存在，则our的作用是声明这个全局变量（类似于C中的extern）
+```
+# 关键字our  
+ our $Scalar =1;                  #全局, 作用域为包  
+ sub Subroutine{  
+     our $Scalar =2;              #全局, 作用域为包  
+     $Scalar +=1;  
+     print $Scalar;                   
+ }  
+ &Subroutine;                     #输出3  
+ &Subroutine;                     #输出3   
+ print $Scalar;                   #输出3
+```
+### 临时全局 local
+* local将全局变量临时借用为局部
+* local操作符需配合our操作符使用（或其他包中的全局变量），用于产生一个局部变量的效果
+* local只能声明已定义的全局变量，被my定义的变量是不可以被local声明的，即local本身不能创造变量
+* local变量是在运行时起作用，它会将参数的值保存在一个运行栈中，当执行线程离开所在作用域时，原先作用域暂存的变量会被恢复
+
+```
+# 关键字local  
+ our $Scalar =1;                  #全局, 作用域为包  
+ sub Subroutine{  
+     local $Scalar =2;            #临时全局变量,  作用域为子程序内部  
+     $Scalar +=1;  
+     print $Scalar;                   
+ }  
+ &Subroutine;                     #输出3  
+ &Subroutine;                     #输出3   
+ print $Scalar;                   #输出1
+```
+### 私有局部 my
+* my操作符用于创建词法作用域变量，通过my创建的变量，存活于声明开始的地方，直到闭合作用域的结尾
+*  闭合作用域指的可以是一对花括号中的区域，可以是一个文件，也可以是一个eval字符串
+* my是编译时在私有符号表中创建新变量，这个变量在运行时无法使用名字进行独立访问，即它不存在于包符号表中（非全局）
+* 当闭合作用域里的my变量与外层变量重名时，当前my变量有效，当退出作用域时，外层变量值不变
+```
+# 关键字my  
+ my $Scalar =1;                   #私有局部变量, 作用域为当前文件  
+ sub Subroutine{  
+     my $Scalar =2;               #私有局部变量, 作用域为花括号  
+     $Scalar +=1;  
+     print $Scalar;                   
+ }  
+ &Subroutine;                     #输出3  
+ &Subroutine;                     #输出3   
+ print $Scalar;                   #输出1
+```
+### 持久局部 state
+* state操作符功能类似于C里面的static修饰符，它与my不同的是，my变量在退出闭合作用域后其值不存在了，而state变量的值会被保留
+* state仅能创建闭合作用域为子程序内部的变量
+* state是从Perl 5.10 开始引入的，所以使用前必须加上use 5.010或更高版本指令
+* state可以声明标量、数组、哈希。但在声明数组和哈希时，不能对其初始化（至少Perl 5.14 不支持）
+```
+# 关键字state  
+ my $Scalar =1;                   #私有局部变量, 作用域为当前文件  
+ sub Subroutine{  
+     state $Scalar =2;            #持久局部变量, 作用域为子程序内部  
+     $Scalar +=1;  
+     print $Scalar;                   
+ }  
+ &Subroutine;                     #输出3  
+ &Subroutine;                     #输出4   
+ print $Scalar;                   #输出1
 ```
 ## 使用警告
 ```
@@ -805,7 +870,34 @@ find(sub{
 ./a/b/c found
 ```
 ## 闭包
-### 简单应用
+* 闭包是封闭于外部词法环境之上的函数
+* 计算机科学中的术语--高阶函数，指的就是函数的函数.
+* 闭包使用词法变量，并且在超出词法作用域后还可以读取该词法变量。
+* 闭包除了抽象结构化细节外还可以做更多事。它允许定制特定的行为。从某种意义上讲它还可以 去掉不必要的泛化。
+* 闭包是除使用全局变量外，在函数调用间保证数据持续性的简易、有效且安全的的方法
+
+简单应用
+```
+# 现在设想你要迭代一个列表，但是又不想自己来管理迭代器，你可以这样做：返回一个函数，并且在调用时，迭代下一个项目。
+
+sub make_iterator
+{
+	my @items = @_;
+	my $count = 0;
+	return sub
+	{
+		return if $count == @items;
+		return $items[ $count++ ];
+	}
+}
+my $cousins = make_iterator(qw(Rick Alex Kaycee Eric Corey Mandy Christine Alex));
+say $cousins->() for 1 .. 6;
+
+尽管make_iterator()已经结束并返回，但是函数中的匿名函数已经和里面的环境关联起来了，（还记得Perl的内存管理机制，引用计数么），所以仍然能够访问。
+每次调用make_iterator()都会产生独立的词法环境，匿名函数创建并保持这个独立的环境。（所以每次产生的匿名函数环境互不影响）
+
+```
+
 ```
 sub how_many {       # 定义函数
     my $count=2;     # 词法变量$count
@@ -819,6 +911,28 @@ how_many()->();     # (2)调用匿名闭包：输出3
 $ref->();           # (3)调用命名闭包：输出3
 $ref->();           # (4)再次调用命名闭包：输出4
 
+```
+```
+
+sub gen_fib
+{
+	my @fibs = (0, 1);
+	return sub
+	{
+		my $item = shift;
+		if ($item >= @fibs)
+		{
+			for my $calc (@fibs .. $item)
+			{
+				$fibs[$calc] = $fibs[$calc - 2] + $fibs[$calc - 1];
+			}
+		}
+		return $fibs[$item];
+	}
+}
+
+my $fib = gen_fib();
+say $fib->(12);
 ```
 # 流程控制
 
@@ -1266,7 +1380,29 @@ do {
   say "statement2";
 } if $a > 2;
 ```
+## given-when
+如果在default之前的when语句使用了continue，Per就会继续执行default语句
+```
+检测单个
+given( $ARGV[0] ) {
+  when( $_ ~~ /fred/i ) { say 'Name has fred in it'; continue }
+  when( $_ ~~ /^Fred/ ) { say 'Name starts with Fred'; continue }
+  when( $_ ~~ 'Fred' ) { say 'Name is Fred'; break } 
+  default { say "I don't see a Fred" } 
+}
 
+
+多个项目的when匹配
+my @names = ("google", "runoob", "taobao", "fred");
+foreach ( @names ) {
+  say("\nProcessing $_");
+  when( /fred/i ) { say 'Name has fred in it'; continue }
+  when( /^Fred/ ) { say 'Name starts with Fred'; continue }
+  when( 'Fred' )  { say 'Name is Fred'; }
+  say("Moving on to default...");
+  default { say "I don't see a Fred" }
+}
+```
 # 常用函数
 ## 取整 int
 截断为整数，如  
@@ -1359,7 +1495,7 @@ say " $a ' \"  \\  \t  \n";
 
 [huawei@n148 perl]$ 
 ```
-## 多行字符串
+## 简单多行字符串
 可以使用单引号来输出多行字符串
 ```
 $string = '
@@ -1369,6 +1505,71 @@ $string = '
  
 print "$string\n";
 ```
+## 多行字符串 heredoc
+当需要声明一个复杂的字符串时，可以用heredoc语法。下例中  <<'END_BLURB'  语法有3部分。
+* 二个小于号标志着这里是heredoc语法
+* 用单引号引起表示这段字符串不做内插，如果没有使用单引号默认就是双引号可以内插
+
+```
+my $v=12345;
+my $blurb =<<'END_BLURB';		# 这里模式单引号，下面的$v不会内插
+He looked up. $v "Change is the constant on which they all
+can agree. We instead, born out of time, remain perfect
+and perfectly self-aware. We only suffer change as we
+pursue it. It is against our nature. We rebel against
+that change. Shall we consider them greater for it $v?"
+END_BLURB
+
+my $blurb2 =<<END_BLURB;		# 这里模式双引号，下面的$v会内插
+He looked up. "$v Change is the constant on which they all
+can agree. We instead, born out of time, remain perfect
+and perfectly self-aware. We only suffer change as we
+pursue it. It is against our nature. We rebel against
+that change. Shall we consider them greater for it?" $v
+END_BLURB
+
+say $blurb;
+say $blurb2;
+
+sub some_function {
+     my $ingredients =<<'END_INGREDIENTS';	# 这里定义了个字符串然后打印出来
+     Two eggs
+     One cup flour
+     Two ounces butter
+     One-quarter teaspoon salt
+     One cup milk
+     One drop vanilla
+     Season to taste
+END_INGREDIENTS
+
+	say $ingredients;
+}
+some_function;
+
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+He looked up. $v "Change is the constant on which they all
+can agree. We instead, born out of time, remain perfect
+and perfectly self-aware. We only suffer change as we
+pursue it. It is against our nature. We rebel against
+that change. Shall we consider them greater for it $v?"
+
+He looked up. "12345 Change is the constant on which they all
+can agree. We instead, born out of time, remain perfect
+and perfectly self-aware. We only suffer change as we
+pursue it. It is against our nature. We rebel against
+that change. Shall we consider them greater for it?" 12345
+	
+     Two eggs
+     One cup flour
+     Two ounces butter
+     One-quarter teaspoon salt
+     One cup milk
+     One drop vanilla
+     Season to taste
+
+```
+
 ## 转义字符
 * \u 修改下一个字符为大写
 * \l 修改下一个字符小写 
@@ -2108,14 +2309,15 @@ print "numbers = @numbers\n";
 print "numbers = @numbers\n";
 ```
 ## 查找
+返回index
 ```
 $,=',';
-sub find{
+sub findindex{
 	my ($what,@arr)=@_;
 	foreach(0..$#arr) {return $_ if $what == $arr[$_];}
 	-1;
 }
-say find(3, qw/1 2 3 4 5/);
+say findindex(3, qw/1 2 3 4 5/);
 ```
 ## 二维数组
 使用引用方式才是正确姿势，见下案例
@@ -2146,9 +2348,11 @@ ARRAY(0xba48b0)
 b1      d2
 ```
 # 列表
+* 列表是一个由逗号分隔、包含一个或多个表达式的组
 * 是标量的有序集合，列表指的是数据
 * Perl中的列表不是数据类型，而是Perl在内部用来临时存放数据的一种方式，只能由Perl自行维护。
 * 列表临时保存在栈中，当使用了列表数据后，这些列表数据就会出栈
+* 列表和数组概念之间不可以交换。列表是值而数组是容器。
 * 可以将Perl列表看作是一种特殊的底层可迭代对象，它看起来像数组，但不是数组。
 ```
 my @arr = (11,22,33);  # 数组arr的元素来自于列表
@@ -2158,7 +2362,7 @@ my @arr = (11,22,33);  # 数组arr的元素来自于列表
 * 标准库List::Utils中也提供了很多常见的列表操作，如reduce、first、any、sum、uniq、shuffle等。
 
 ## 列表直接量
-向下面()里的即是
+下面()里的即是
 ```
 my $a=10;
 my $b=30;
@@ -3209,10 +3413,55 @@ chdir('/etc1') or warn "无法切换目录";
 ```
 use autodie;
 ```
-## croak、carp
-Perl自带的die和warn有时候并不友好，它们只会报告代码出错的位置，即哪里使用了die或warn，就报告这个地方有问题。Carp模块提供的croak和carp函数提供了更细致的错误追踪功能，用法分别对应die和warn，区别仅在于它们会展示更具体的错误位置。
+## caller()
+使用内置函数caller可获取该函数被调用的情况。
+* 无参数caller返回一个列表，包含有调用者的包名，调用者的文件名，和调用发生的位置
+* caller还接受一个整型参数n，返回n层嵌套外调用的情况。
+* caller(0)会上溯到在my_call中被调用的信息；
+* caller(1) 会上溯到在程序中被调用的信息；
+
 ```
-案例待添加
+use v5.12;
+my_call();
+sub my_call
+{
+	show_call_information();
+}
+#额外的会返回一个函数名
+sub show_call_information
+{
+my ($package, $file, $line, $func) = caller(1);
+say "Called $func from $package in $file:$line";	# 打印出调用堆栈信息
+}
+
+my_call;
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+Called main::my_call from main in /home/huawei/playground/perl/2.pl:4
+Called main::my_call from main in /home/huawei/playground/perl/2.pl:19
+```
+## croak、carp
+* Perl自带的die和warn仅报告代码出错的行，内容不够完善
+* Carp模块提供的croak和carp函数提供了更细致的错误追踪功能，用法分别对应die和warn
+* Carp模块就使用caller来报告错误和警告信息的。croak()从调用者的角度抛出异常，carp()报告位置。
+```
+package Newlib;
+use 5.006;	
+use Carp;
+our $VERSION = '0.01';
+sub function {
+   croak "模块错误！";	# 这里出错，但打印出的错误信息却是调用此方法的那行
+}
+1;
+
+
+#!/usr/bin/perl -I/home/huawei/playground/perl/123
+use v5.12;
+use newlib;
+Newlib::function();
+
+[huawei@n148 perl]$ /usr/bin/perl -I/home/huawei/playground/perl/123 "/home/huawei/playground/perl/2.pl"
+模块错误！ at /home/huawei/playground/perl/2.pl line 4.
 ```
 ## eval错误处理
 使用die或Carp的croak，都将报错退出程序，如果不想退出程序，可以使用eval来处理错误：当eval指定的代码出错时，它将返回undef而不是退出。eval有两种用法: 
@@ -3245,6 +3494,17 @@ if ($ok){
 * 第四种：是exit操作符会立即终止程序运行，就算从eval块内部的子程序* 来调用它
 ## Try::Tiny
 提供了try、catch、finally的语法
+## AUTOLOAD
+Perl 提供了一种机制，可以截获不存在方法的调用。这样就可以只定义所需的函数或提供有趣的错误信息和警告。
+```
+use Modern::Perl;
+bake_pie( filling => 'apple' ); # 这里没有崩溃
+sub AUTOLOAD { say 'In AUTOLOAD()!' }
+
+[huawei@n148 perl]$ /usr/bin/perl -I/home/huawei/playground/perl/123 "/home/huawei/playground/perl/2.pl"
+In AUTOLOAD()!
+```
+
 # 正则
 默认搜索对象是$_，Perl的正则表达式的三种形式：
 * 匹配：m//
@@ -4985,7 +5245,79 @@ roll();		首选
 	say roll();  # 打印1231，其中123是函数内的打印。最后的1是print的运行结果
 	```
 	
-## wantarray
+## 语境感知 wantarray
+Perl的内置函数wantarray具有感知函数调用语境的功能。  
+* 1 wantarray在空语境下返回undef；
+* 2 标量语境返回假；
+* 3 列表语境返回真。
+```
+use Modern::Perl;
+use Test::More;
+
+sub context_sensitive
+{
+my $context = wantarray();
+return qw( List context ) if $context;
+say 'Void context' unless defined $context;
+return 'Scalar context' unless $context;
+}
+
+context_sensitive(); # 不需要返回内容符合上面1，返回空，打印Void context
+say my $scalar = context_sensitive(); # 需要一个标量符合上面2，返回Scalar context
+say context_sensitive();	# say的参数是列表需要返回list符合上面3，返回Listcontext
+
+[huawei@n148 perl]$ /usr/bin/perl -I/home/huawei/playground/perl/123 "/home/huawei/playground/perl/2.pl"
+Void context
+Scalar context
+Listcontext
+
+
+
+第二个案例
+--------------------
+ sub context
+ {
+	my $context = wantarray();
+	my $b=defined $context;
+	say "\n---------------context=$context\tdefined context=$b";
+	if ($b){
+		if ($context)
+		{
+			say "list";
+		}
+		else{
+			say "scale";
+		}
+	} else {
+		say "void";
+	}
+	return 0;
+ }
+ my @list_slice = (1, 2, 3)[context()];	# context处需要列表，wantarray返回t，defined $context以及$context都是t，最终是say list
+ my @array_slice = @list_slice[context()]; # 同上
+ my $array_index = $array_slice[context()]; # 对array_slice取元素，context处需要标量，wantarray为f，defined $context却是t，最终say scale
+ say context(); # say需要列表，wantarray返回t，defined $context以及$context都是t，最终是say list，再出来say return的0
+ context() # 空语境wantarray返回undef，say void
+
+ [huawei@n148 perl]$ /usr/bin/perl -I/home/huawei/playground/perl/123 "/home/huawei/playground/perl/2.pl"
+
+---------------context=1        defined context=1
+list
+
+---------------context=1        defined context=1
+list
+
+---------------context= defined context=1
+scale
+
+---------------context=1        defined context=1
+list
+0
+Use of uninitialized value $context in concatenation (.) or string at /home/huawei/playground/perl/2.pl line 13.
+
+---------------context= defined context=
+void
+```
 ## 参数列表，传递标量参数
 * 子程序可有多个参数，函数内使用 @_ 表示参数列表
 * 子程序内也可直接使用 $ _[0], $ _[1]代表第n个参数
@@ -5468,6 +5800,61 @@ say %{   # 解除匿名hash
        },
      };
 ```
+## 匿名函数
+使用 sub 关键字 不用 函数名称也可以使得函数正常编译，但是它不会被安装到当前 的名称
+空间中。访问此函数的唯一方法就是通过引用。
+```
+use Modern::Perl;
+use Test::More;
+sub bake_cake { say 'Baking a wonderful cake!' };
+my $cake_ref = \&bake_cake;
+my $pie_ref = sub { say 'Making a delicious pie!' };
+$cake_ref->();
+$pie_ref->();
+
+[huawei@n148 perl]$ /usr/bin/perl -I/home/huawei/playground/perl/123 "/home/huawei/playground/perl/2.pl"
+Baking a wonderful cake!
+Making a delicious pie!
+```
+## 匿名函数的名称
+存在可以鉴别一个引用是指向具名函数还是匿名函数的特例。__ANON__ 展示了匿名函数没有 Perl 可以识别的名称
+```
+sub show_caller
+{
+	my ($package, $filename, $line, $sub) = caller(1);
+ 	say "Called from $sub in $package at $filename : $line";
+}
+sub main
+{
+ 	my $anon_sub = sub { show_caller() };
+ 	show_caller();
+ 	$anon_sub->();
+}
+main();
+
+[huawei@n148 perl]$ /usr/bin/perl -I/home/huawei/playground/perl/123 "/home/huawei/playground/perl/2.pl"
+Called from main::main in main at /home/huawei/playground/perl/2.pl : 16
+Called from main::__ANON__ in main at /home/huawei/playground/perl/2.pl : 14
+```
+还使用Sub库进行解决
+```
+use Modern::Perl;
+use Test::More;
+use Sub::Name;
+use Sub::Identify 'sub_name';
+my $anon = sub {};
+say sub_name( $anon );
+my $named = subname( 'pseudo-anonymous', $anon );
+say sub_name( $named );
+say sub_name( $anon );
+say sub_name( sub {} );
+
+[huawei@n148 perl]$ /usr/bin/perl -I/home/huawei/playground/perl/123 "/home/huawei/playground/perl/2.pl"
+__ANON__
+pseudo-anonymous
+pseudo-anonymous
+__ANON__
+```
 ## 区分匿名{}与作用域{}
 * 大括号前面加上+符号，即+{...}，表示这个大括号是用来构造匿名hash的
 * 大括号内部第一个语句前，多使用一个;，即{;...}，表示这个大括号是一次性语句块
@@ -5476,7 +5863,10 @@ say %{   # 解除匿名hash
 @{ +$ref_arr }           # 数组引用变量前
 %{ +$ref_hash }          # hash引用变量前
 ```
-## autovivification特性
+## 自生 autovivification
+CPAN 上的 autovivification 编译命令（编译命令）让你可以在词法作用域内对某 特定类
+型操作禁用自生行为。
+
 解除引用时，如果解除目标不存在，会自动补全结构中的元素内容  
 https://www.cnblogs.com/f-ck-need-u/p/9718238.html?utm_medium=referral&utm_source=itdadao
 ```
@@ -5511,7 +5901,7 @@ Perl 语言中定义了一些特殊的变量，通常以 $, @, 或 % 作为前�
 如果你想使用英文名的特殊变量需要在程序头部添加 use English;。这样就可以使用具有描述性的英文特殊变量。
 ```
 
-## 默认参数 $_
+## 默认标量变量 $_
 对于需要参数的函数或表达式，但却没有给参数则默认是变量$_
 ```
 $_="abcde";
@@ -5521,7 +5911,18 @@ foreach(1..10){
 	print $_;
 }
 ```
-## 命令行参数 ARGV
+## 默认数组变量 @_
+Perl通过一个名为@_的数组向函数传递参数
+```
+$,=',';
+sub findindex{
+	my ($what,@arr)=@_;
+	foreach(0..$#arr) {return $_ if $what == $arr[$_];}
+	-1;
+}
+say findindex(3, qw/1 2 3 4 5/);
+```
+## 命令行参数 @ARGV
 * 命令行参数保存在数组@ARGV中，数组下标从0开始
 * ARGV[0]是第一个参数（非程序名称），以此类推
 * $ #ARGV保存数组最后一个元素的索引（非数组元素数量），当无参数时$#ARGV等于-1（不是零）
@@ -5953,8 +6354,28 @@ rename 'oldfile', 'newfile';
 ```
 [huawei@n148 perl]$ perldoc File::Basename
 ```
-## 加载模块
-* 使用use来装载模块
+## 导入模块 use
+* 当使用关键字use加载一个模块时，Perl就会自动调用一个叫import()的方法
+	```
+	use strict;
+	#这句的意思就是加载strict.pm模块，
+	#然后调用strict->import()方法（没有参数）。
+
+
+	use strict 'refs';
+	use strict qw( subs vars );
+	#加载strict.pm模块，
+	#然后调用strict->import( 'refs' ), 
+	#再调用 strict->import( 'subs', vars' )。
+
+	你也可以直接显式调用import()方法。和上面的例子等价：
+	BEGIN
+	{
+		require strict;
+		strict->import( 'refs' );
+		strict->import( qw( subs vars ) );
+	}
+	```
 * use语句是程序编译期间执行的
 * 通常use写在程序的开头，但非必须
 * use模块后其内的属性就会导入到当前程序的名称空间供当前程序使用
@@ -6298,7 +6719,7 @@ print myadd(10,30);
 40
 ```
 ## require方式导入
-此方式最佳，不会出现代码重定义
+require方式最佳，不会出现代码重定义
 ```
 mod.pm内定义函数，注意被require的文件末尾要有1（是个真值即可）否则报错
 sub myadd
@@ -6309,8 +6730,14 @@ sub myadd
 }
 1
 
-
+方式1：pm文件直接带路径
 require q/mod.pm/;
+
+方式2：将路径临时放入@INC
+unshift (@INC, "$ATL3PARAM{'MAINPATH'}");
+require "util.pm";
+
+调用函数:
 print myadd(10,30);
 [huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
 40
@@ -6375,19 +6802,29 @@ pl
 pl
 40
 ```
-## 包变量
-待完善
+
+# 包
+## 名称空间和包
+* 名称空间是一种机制，它将若干具名实体关联并封装于某具名分类之下
+* 包是单一名称空间下代码的集合。
+* 在某种意义上，包和名称空间是等价的。包代表源代码而名称空间代表当Perl分析这段代码时创建的实体。
+* 包是独立于文件的，一个文件中可以有多个包，一个包也可能跨多个文件。所以一个.pm不一定只有一个命名空间。
+* 包提供了基本结构模块，基于这些构造模块，可以构建更高层的模块和类概念。
+* 当未明确声明一个包，无论在命令行或在Perl程序、甚至是pm文件默认包都是main包。
+* 名称空间无继承关系
+* 可以使用导出的方式在A包里使用B包的函数且调用时无需包名前缀和::
+```
+Perl5.12引入了一种简化版本号的定义package新语法一行即可  
+package MyCode 1.2.1;
+```
 
 
-# 包、命名空间、符号表、类型团、GLOB
+# 符号表、类型团、GLOB
 ## 概念
-* 包与命名空间
-  * Perl中，命名空间称为包。
-  * 通常包只是一个文件，在一个文件中放一个包，文件名和包名相同，并且使用.pm（perl module）作为扩展名。
-  * 包是独立于文件的，一个文件中可以有多个包，一个包也可能跨多个文件。所以一个.pm不一定只有一个命名空间。
-  * 包提供了基本结构模块，基于这些构造模块，可以构建更高层的模块和类概念。
+
+
 * 符号表 symbol table
-  * 包的内容称为符号表。一个包就是一个符号表。
+  * 包的内容称为符号表。一个包就是一个符号表。其中包含了这个包中的所有变量及子程序的名字
   * 符号表存储在一个散列中，这个散列与包同名，并且要在后面追加 : : 。
   * main符号表就是%main::，由于main是默认的包，所以可以写作%::。
   * 符号表的键是符号标识符，值是对应的类型团。
@@ -6526,6 +6963,15 @@ getc 函数能从键盘或者文件中获得单个字符。如果碰到 EOF，ge
 ## 读取文本文件
 将文件作为perl命令行的参数，perl会使用<>去读取这些文件中的内容。
 ```
+open my $fh, '<', "/etc/services";
+while (<$fh>)
+{
+	print $_;
+}
+close $fh;
+
+
+------------------
 由于<>和<STDIN>读取文件、读取标准输入的时候总是自带换行符，很多时候这个自带的换行符都会带来格式问题。所以，有必要在每次读取数据时将行尾的换行符去掉，使用chomp即可
 
 脚本内容：
@@ -6594,9 +7040,10 @@ aaa\nbbb
 [huawei@n148 perl]$ 
 ```
 ## 输出与格式化 print、printf、sprintf、say
-* print 不带\n；
+* print 不带\n； 默认输出到STDOUT，可以使用select指定目标句柄  
+  如 print OUTFILE ("Hello, there!\n"); 则是输出到文件
 * say 自带\n，必须结合use 5.10才能使用；
-* printf 格式化输出字符串；
+* printf 格式化输出字符串；默认输出到STDOUT，也可以指定句柄
 * sprintf 只格式化，无print功能。
 
 printf sprintf常用格式符含义
@@ -6646,7 +7093,7 @@ close(IN_FD);
 close(OUT_FD);
 ```
 ## 设定当前输出句柄 select
-在select指定句柄后，随后输出在默认情况下，会输出到指定的句柄
+默认输出句柄是STDOUT，可以使用select指定默认句柄
 ```
 open(FD,"> newfile");
 select(FD);
@@ -7235,29 +7682,7 @@ say 'find' if %data ~~ /oo/;
 find
 ```
 
-# given-when
-如果在default之前的when语句使用了continue，Per就会继续执行default语句
-```
-检测单个
-given( $ARGV[0] ) {
-  when( $_ ~~ /fred/i ) { say 'Name has fred in it'; continue }
-  when( $_ ~~ /^Fred/ ) { say 'Name starts with Fred'; continue }
-  when( $_ ~~ 'Fred' ) { say 'Name is Fred'; break } 
-  default { say "I don't see a Fred" } 
-}
 
-
-多个项目的when匹配
-my @names = ("google", "runoob", "taobao", "fred");
-foreach ( @names ) {
-  say("\nProcessing $_");
-  when( /fred/i ) { say 'Name has fred in it'; continue }
-  when( /^Fred/ ) { say 'Name starts with Fred'; continue }
-  when( 'Fred' )  { say 'Name is Fred'; }
-  say("Moving on to default...");
-  default { say "I don't see a Fred" }
-}
-```
 # List::Util模块
 # Regexp::Common
 # File::Basename
@@ -7521,6 +7946,19 @@ new_ok 		判断创建的对象是否 ok
   can_ok() 判断模块 $module 或对象 $object 能否调用方法 @methods。
 
 ```
+use Modern::Perl;
+use Test::More;
+say "Both true!" if ok(1, 'first subexpression') && ok(1, 'second subexpression');
+done_testing();
+[huawei@n148 perl]$ /usr/bin/perl -I/home/huawei/playground/perl/123 "/home/huawei/playground/perl/2.pl"
+ok 1 - first subexpression
+ok 2 - second subexpression
+Both true!
+1..2
+
+
+-----------------
+
 use strict; 
 use warnings; 
 use Test::More tests => 4; # case数量
@@ -7539,8 +7977,70 @@ ok 1 - hello() works
 ok 2 - bye() works
 ok 3 - bye() works
 ok 4 - Hello->can(...)
+
+
+
+
+
+use Modern::Perl;
+use Test::More;
+my $some_a = qr/ca+t/;
+like( 'cat', $some_a, "'cat' matches /ca+t/" );
+like( 'caat', $some_a, "'caat' matches/" );
+like( 'caaat', $some_a, "'caaat' matches" );
+like( 'caaaat', $some_a, "'caaaat' matches" );
+unlike( 'ct', $some_a, "'ct' does not match" );
+done_testing();
+[huawei@n148 perl]$ /usr/bin/perl -I/home/huawei/playground/perl/123 "/home/huawei/playground/perl/2.pl"
+ok 1 - 'cat' matches /ca+t/
+ok 2 - 'caat' matches/
+ok 3 - 'caaat' matches
+ok 4 - 'caaaat' matches
+ok 5 - 'ct' does not match
+1..5
+```
+## Test::Exception
+```
+use Modern::Perl;
+use Test::More tests => 6;
+use Test::Exception;
+throws_ok { die "I croak!" }
+qr/I croak/, 'die() should throw an exception';
+lives_ok { 1 + 1 }
+'simple addition should not';
+
+say "---------下面的是自定义匿名回调--------";
+throws_ok( sub { die "I croak!" },
+qr/I croak/, 'die() should throw an exception' );
+lives_ok( sub { 1 + 1 },
+'simple addition should not' );
+
+say "---------下面的是自定义具名回调--------";
+sub croak { die 'I croak!' }
+sub add { 1 + 1 }
+throws_ok \&croak,
+qr/I croak/, 'die() should throw an exception';
+lives_ok \&add,
+'simple addition should not';
+
+[huawei@n148 perl]$ /usr/bin/perl -I/home/huawei/playground/perl/123 "/home/huawei/playground/perl/2.pl"
+1..6
+ok 1 - die() should throw an exception
+ok 2 - simple addition should not
+---------下面的是自定义匿名回调--------
+ok 3 - die() should throw an exception
+ok 4 - simple addition should not
+---------下面的是自定义具名回调--------
+ok 5 - die() should throw an exception
+ok 6 - simple addition should not
 ```
 ## Test::Class
+属性是一个附加于变量或函数声明上的前置冒号标识符。
+		
+		my $fortress :hidden;
+ 		sub erupt_volcano :ScienceProject { ... }
+
+属性可以包括一个参数列表；Perl 将它们作为一个常量字符串列表，即使它们可能会类似于其他值，如，数字或变量。来自 CPAN 的 Test::Class 模块很好地利用了这一参数形式详见下面的代码
 
 Test::Class 的常用方法包括
 * Test  
