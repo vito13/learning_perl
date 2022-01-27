@@ -1596,6 +1596,12 @@ abCXYZ
 abCXyz
 JuNMaJiNLoNg
 ```
+演示\Q...\E的效果，看下例的正则表达式即可，2个like都可匹配成功
+```
+($ret, $stdout, $stderr) = $node->psql('postgres', "select * from pg_audit where adtclass='DDL';", extra_params => [ '-U', "dbaa" ]);
+like($stdout, qr@\Qdbda|DDL|CREATE TABLE|TABLE|public.t1|create table t1(a int)\E@, 'test 4 find DDL');
+like($stdout, qr@\Qdbda|DDL|DROP TABLE|TABLE|public.t1|drop table t1\E@, 'test 4 find DDL');
+```
 
 ## 字符串连接和重复
 Perl使用点.来串联字符串。Perl使用x来重复字符串指定次数，如果x重复次数是小数，则截断为整数，如果x是0，则清空字符串。
@@ -3498,11 +3504,21 @@ if ($ok){
 Perl 提供了一种机制，可以截获不存在方法的调用。这样就可以只定义所需的函数或提供有趣的错误信息和警告。
 ```
 use Modern::Perl;
-bake_pie( filling => 'apple' ); # 这里没有崩溃
-sub AUTOLOAD { say 'In AUTOLOAD()!' }
 
-[huawei@n148 perl]$ /usr/bin/perl -I/home/huawei/playground/perl/123 "/home/huawei/playground/perl/2.pl"
-In AUTOLOAD()!
+say bake_pie( filling => 'apple' );
+sub AUTOLOAD { 
+	my ($name) = our $AUTOLOAD =~ /::(\w+)$/;
+	# 将参数美化输出
+	local $" = ', ';
+	say "In AUTOLOAD(@_) for $name!";
+	say "In AUTOLOAD(@_) for $AUTOLOAD!";
+	return "mmm";
+}
+
+[huawei@n148 perl]$ perl 2.pl 
+In AUTOLOAD(filling, apple) for bake_pie!
+In AUTOLOAD(filling, apple) for main::bake_pie!
+mmm
 ```
 
 # 正则
@@ -3513,6 +3529,8 @@ In AUTOLOAD()!
 	
 这三种形式一般都和 =~ 或 !~ 搭配使用， =~ 表示相匹配，!~ 表示不匹配。
 ## 元字符 metacharacter
+https://www.cnblogs.com/dancheblog/p/3528000.html
+
 元字符是不代表自身原有含义的字符。前面加上\，元字符就失去了它原有的属性。  
 ‘.’ 与 ‘\’是元字符，默认‘.’不匹配\n（如需匹配使用s见下文），如需在模式中匹配到‘.’或‘\’只要在前面在加上‘\’即可
 
@@ -7599,6 +7617,9 @@ end
 https://github.com/vinian/perl1line.txt/blob/master/perl1line-ch.txt
 
 # 智能匹配 ~~
+对两个操作数进行比较，并在互相匹配时返回真值。定义的模糊恰好反映了此操作符的智能程度，比较操作由操作数两者共同决定。之前的given（Given/When）进行的就是隐式智能匹配。
+
+
 检测某个元素是否在数组中的代码，使用智能匹配
 ```
 my $x=2;
