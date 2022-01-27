@@ -7724,6 +7724,295 @@ say "$base, $path, $suffix";
 ```
 
 # 面向对象
+## Moose
+Moose是一个完整的面向对象系统，功能齐全而且易于使用。它不是Perl核心模块的一部分，所以需要从CPAN上下载、安装才能使用
+### 类、方法、属性
+```
+use Modern::Perl;
+{
+	package Cat;
+	use Moose;
+
+	# 定义成员方法
+	sub meow
+	{
+		# 指向自身this
+		my $self = shift;
+		say 'Meow!';
+	}
+
+	# 定义属性，ro 可读但不可写
+	has 'name1', is => 'ro', isa => 'Str';
+	has 'name2' => ( is => 'ro', isa => 'Str' );
+	has( 'name3', 'is', 'ro', 'isa', 'Str' );
+ 	has( qw( name4 is ro isa Str ) );
+	has 'name5' => (
+		is => 'ro',
+		isa => 'Str',
+		# 高级 Moose 选项；perldoc Moose
+		init_arg => undef,
+		lazy_build => 1,
+	);
+
+	# 属性的类型可以缺省
+	has 'age1', is => 'ro';
+	has 'age2', is => 'ro', isa => 'Int';
+	# rw 可读且可写
+	has 'diet', is => 'rw';
+}
+
+# 创建对象，调用方法
+my $alarm = Cat->new();
+$alarm->meow();
+$alarm->meow();
+$alarm->meow();
+
+# 通过类名调用
+Cat->meow() for 1 .. 3;
+
+for my $name (qw( Tuxie Petunia Daisy ))
+{
+	# 构造传参
+	my $cat = Cat->new( name1 => $name );
+	# 调用自动生成的访问器
+	say "Created a cat for ", $cat->name1();
+}
+
+# 使用缺省类型的age1
+my $invalid = Cat->new( name1 => 'bizarre', age1 => 'purple' );
+say "invalid cat for ", $invalid->age1();
+my $invalid2 = Cat->new( name1 => 'bizarre', age1 => 12 );
+say "invalid2 cat for ", $invalid2->age1();
+
+
+my $fat = Cat->new( name1 => 'Fatty', age1 => 8, diet => 'Sea Treats' );
+say $fat->name1(), ' eats ', $fat->diet();
+# 对可写的属性重新赋值
+$fat->diet( 'Low Sodium Kitty Lo Mein' );
+say $fat->name1(), ' now eats ', $fat->diet();
+
+
+[huawei@n148 perl]$ perl 2.pl 
+Meow!
+Meow!
+Meow!
+Meow!
+Meow!
+Meow!
+Created a cat for Tuxie
+Created a cat for Petunia
+Created a cat for Daisy
+invalid cat for purple
+invalid2 cat for 12
+Fatty eats Sea Treats
+Fatty now eats Low Sodium Kitty Lo Mein
+
+```
+### 属性的默认值
+```
+use Modern::Perl;
+{
+	package Cat;
+	use Moose;
+	has 'name', is => 'ro', isa => 'Str';
+	has 'diet', is => 'rw';
+	# 普通样式
+	# has 'birth_year', is => 'ro', isa => 'Int';
+
+	# 默认值样式
+	has 'birth_year', is => 'ro', isa => 'Int', default => 2021;
+
+	# 使用提供的方法计算默认值
+	# has 'birth_year', is => 'ro', isa => 'Int', default => sub { (localtime)[5] + 1900 };
+
+	sub age
+	{
+		my $self = shift;
+		my $year = (localtime)[5] + 1900;
+		return $year - $self->birth_year();
+	}	 
+}
+
+my $fat = Cat->new( name => 'Fatty', birth_year => 2020, diet => 'Sea Treats' );
+say $fat->age();
+my $fat2 = Cat->new( name => 'Fatty2', diet2 => 'Sea Treats' );
+say $fat2->age();
+
+[huawei@n148 perl]$ perl 2.pl 
+2
+1
+```
+### 继承
+* 关键字extends用来表示要继承父类，可以多继承
+```
+演示最基本的继承，但是分为了多个文件
+
+
+定义基类
+[huawei@n148 perl]$ cat Animal.pm 
+package Animal;
+use Moose;
+has 'name'=> (
+        is => 'rw',
+        isa => 'Str',
+);
+sub whatamI {
+        my $self = shift;
+        print "This is a $self->{name}\n";
+}
+
+
+定义子类
+[huawei@n148 perl]$ cat Duck.pm 
+package Duck;
+require "Animal.pm";
+
+use Moose;
+extends 'Animal';
+has 'flyable' => (
+  is => 'rw',
+  isa => 'Bool',
+  default => 1,
+);
+
+sub fly {
+  my $self = shift;
+  if ($self->flyable){
+    print "It can fly\n";
+  }
+  else {
+    print "Wow it can't fly\n";
+  }
+}
+
+
+调用
+[huawei@n148 perl]$ cat 2.pl 
+use Modern::Perl;
+unshift (@INC, "./");
+require "Duck.pm";
+
+my $duck_object = Duck->new(
+  name => 'duck',
+  flyable => 1,
+);
+
+$duck_object->whatamI();
+
+
+运行结果
+[huawei@n148 perl]$ perl 2.pl 
+This is a duck
+```
+* 子类的属性名字前面使用加号，表示在子类中会对这个继承来的属性做一些特别的事情，下例里是重写了默认值
+* 子类还可以重写方法，见下例的Glowstick::extinguish
+* super()指明去最近的父类调度当前的方法，见下例的Cranky
+```
+演示子类覆盖父类的属性默认值
+
+use Modern::Perl;
+package LightSource 
+{
+	use Moose;
+
+	has 'candle_power', is => 'ro',
+	isa => 'Int',
+	default => 1;
+
+	has 'enabled', is => 'ro',
+	isa => 'Bool',
+	default => 0,
+	# enabled的writer选项创建了一个私有访问器来设置该值，下面2个方法内使用
+	writer => '_set_enabled';
+
+	sub light {
+		my $self = shift;
+		$self->_set_enabled( 1 );
+		say "set enable 1";
+	}
+
+	sub extinguish {
+		my $self = shift;
+		$self->_set_enabled( 0 );
+		say "set enable 0";
+	}
+}
+
+package SuperCandle
+{
+	use Moose;
+	extends 'LightSource';
+	has '+candle_power', default => 100;
+}
+
+package Glowstick
+{
+	use Moose;
+	extends 'LightSource';
+	sub extinguish {}
+}
+
+package Cranky
+{
+	use Carp 'carp';
+	use Moose;
+	extends 'LightSource';
+	override light => sub
+	{
+		my $self = shift;
+		carp "Can't light a lit light source!" if $self->enabled;
+		super();
+	};
+
+	override extinguish => sub
+	{
+		my $self = shift;
+		carp "Can't extinguish unlit light source!" unless $self->enabled;
+		super();
+	};
+}
+
+# 创建基类对象并调用方法
+my $v1 = LightSource->new();
+say $v1->candle_power();
+
+# 创建子类对象传参并调用方法
+my $v2 = SuperCandle->new(
+  candle_power => 50
+);
+say $v2->candle_power();
+
+# 创建子类对象使用默认参数并调用方法
+my $v3 = SuperCandle->new();
+say $v3->candle_power();
+
+# 调用了子类的空实现，不再调用父类对应方法了
+my $v4 = Glowstick->new();
+say $v4->extinguish();
+
+# 创建带有参数的子类对象，调用子类重新实现的方法
+my $v5 = Cranky->new(
+	candle_power => 50,
+	enabled => 1
+);
+$v5->light();
+
+my $v6 = Cranky->new(
+	candle_power => 50,
+);
+$v6->extinguish();
+
+
+[huawei@n148 perl]$ perl 2.pl 
+1
+50
+100
+
+Can't light a lit light source! at /home/huawei/perl5/lib/perl5/x86_64-linux-thread-multi/Moose/Meta/Method/Overridden.pm line 38.
+set enable 1
+Can't extinguish unlit light source! at /home/huawei/perl5/lib/perl5/x86_64-linux-thread-multi/Moose/Meta/Method/Overridden.pm line 38.
+set enable 0
+```
 ## 从定义类到简单基类
 下面的命令使用了缺省参数，见$HOME/.module-starter/config内的配置
 ```
