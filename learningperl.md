@@ -3371,7 +3371,19 @@ say "expect HASH reference" unless $ref_type eq HASH;
 say "expect Array reference" unless $ref_type eq ARRAY;
 ```
 
-# 异常处理
+# 异常处理与告警
+## warn
+warn会将列表值输出到STDERR句柄（标准错误输出）。除非列表的最后一个元素以换行符结尾，否则Perl还会在告警中带上文件名和warn所在行号来帮助定位问题。
+```
+use Modern::Perl;
+warn qq@Something went wrong!\n@;
+warn qq@Something went wrong!@;
+
+[huawei@n148 perl]$ perl 2.pl 
+Something went wrong!
+Something went wrong! at 2.pl line 3.
+```
+## carp
 ## die、warn
 * Perl自带了warn 函数用于触发一个警告信息，不会有其他操作，输出到 STDERR(标准输出文件)，die 函数类似于 warn, 但它会执行退出。
 * $ !变量代表errmsg，但并非所有的错误都有$ !，只有涉及到系统调用且出错时才有。
@@ -3446,7 +3458,8 @@ my_call;
 Called main::my_call from main in /home/huawei/playground/perl/2.pl:4
 Called main::my_call from main in /home/huawei/playground/perl/2.pl:19
 ```
-## croak、carp
+## carp、croak
+核心模块 Carp 提供了其他产生警告的机制。
 * Perl自带的die和warn仅报告代码出错的行，内容不够完善
 * Carp模块提供的croak和carp函数提供了更细致的错误追踪功能，用法分别对应die和warn
 * Carp模块就使用caller来报告错误和警告信息的。croak()从调用者的角度抛出异常，carp()报告位置。
@@ -3469,19 +3482,20 @@ Newlib::function();
 [huawei@n148 perl]$ /usr/bin/perl -I/home/huawei/playground/perl/123 "/home/huawei/playground/perl/2.pl"
 模块错误！ at /home/huawei/playground/perl/2.pl line 4.
 ```
-## eval错误处理
+## eval
 使用die或Carp的croak，都将报错退出程序，如果不想退出程序，可以使用eval来处理错误：当eval指定的代码出错时，它将返回undef而不是退出。eval有两种用法: 
-* 字符串作为参数
-* 语句块作为参数
+
 ```
-eval 'say "hello world"';
-eval {say "hello world"};
+eval 'say "hello world"';	字符串作为参数
+eval {say "hello world"};	语句块作为参数
 ```
 
 无论是字符串参数还是语句块参数，参数部分都会被当作代码执行一次。
+```
 * 如果eval参数部分执行时没有产生错误，则eval的返回值是最后一条被执行语句的计算结果，并且特殊变量$@为空。
 * 如果eval参数部分执行时产生了错误，则eval的返回值为undef或空列表，同时将错误信息设置到$@中。
-* 之所以将 $ @ 保存起来，是因为handle_error可能也有eval，这时handle_error的eval将覆盖之前的$@。
+* 之所以将$@保存起来，是因为handle_error可能也有eval，这时handle_error的eval将覆盖之前的$@。
+```
 ```
 my $res;
 my $ok = eval { $res = some_func(); 1};
@@ -6547,6 +6561,30 @@ sub myfun {
 	[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
 	30
 	```
+## 管理分发包的CPAN工具
+Perl核心包含了几个用于管理分发包的工具:
+* CPAN.pm  
+是正式的CPAN客户端。默认的，客户端会从公共库CPAN来安装发行包，当然你也可以配置成指定的库来代替或补充公共库（CPAN）。
+* ExtUtils::MakeMaker  
+是个复杂但好用的工具，用于打包、构建、测试和安装分发包，它和Makefile.PL一起工作。
+* Test::More  
+用于编写自动化测试，使用最广泛的基础模块。
+* TAP::Harness和prove  
+用来运行测试，解析和报告测试结果。
+* App::cpanminus  
+是一个无需配置的CPAN客户端，它可以处理最常见任务，使用很少的内存并且运行得很快。
+* App::perlbrew  
+可以帮助管理多个Perl版本。
+* CPAN::Mini和cpanmini命令  
+允许创建自己的CPAN镜像。可以将自己的分发包放到私有镜像库里面，还可以进行版本管理。（有些情形下非常有用，比如针对自己公司指定哪些版本可用）
+* Dist::Zilla  
+可自动执行一些分发包相关任务。利用Module::Build或 ExtUtils::MakeMaker进行工作，避免直接使用它们。这里有相关的教程：http://dzil.org/ 。
+* Test::Reporter  
+报告分发包自动化测试的结果，给作者提供更详细的故障细节。
+* Carton和Pinto  
+是2个新项目，它们旨在帮助你管理和安装代码的依赖。尚未被广泛使用，处在积极的开发中。
+* Module::Build  
+功能和ExtUtils::MakeMaker一样，但停止维护了。
 
 ## 创建模块 Module::Starter
 Module::Starter模块提供了一个命令行程序module-starter，它可以用来构建模块。先安装之
@@ -6620,12 +6658,14 @@ Module::Starter模块提供了一个命令行程序module-starter，它可以用
 
 项目文件说明：
 
-    Changes：包含程序版本的变化信息
-    MANIFEST：列出发布的模块版本中必须包含的每个文件
+    Changes：模块变更的日志。
+    MANIFEST：列出发布的模块版本中必须包含的每个文件。发行模块中包含的所有文件的列表。		这助于打包工具生成完整的 tar 压缩包并帮助验证压缩包使用者得到所有必需的文件；
     Makefile.PL：是Perl程序创建的Makefile，Makefile文件中包含了如何编译和构建程序的说明。如果不是非常熟悉Makefile格式，千万不能修改，一个tab和空格的不同可能都会导致编译出错。
-    README：包含了如何构建和安装程序的文档，一般来说，程序的说明文档会嵌入在此文件中。
+	Build.PL 或是 Makefile.PL，这些程序用于配置、构建、测试、捆绑及 安装模块；
+	META.yml 和/或 META.json：一个包含有关发行模块及其依赖的元数据文件；
+    README：对发行模块的描述、意图、版权和许可信息；包含了如何构建和安装程序的文档，一般来说，程序的说明文档会嵌入在此文件中。
     ignore.txt：是类似于git/svn版本控制系统的文件忽略模板，你可能会经常拷贝该文件到你的版本控制系统中。
-    lib/：该目录包含了实际要安装的模块。
+    lib/：该目录包含了实际要安装的模块。含有 Perl 模块的目录；
     t/：代码测试目录，该目录包含了模块测试相关的文件。
 	xt/：作者测试目录。
 
@@ -7760,6 +7800,101 @@ say "$base, $path, $suffix";
 ```
 
 # 面向对象
+## UNIVERSAL包
+Perl内部的UNIVERSAL包是其他所有包的祖先，以面向对象的视角来看那就是终极父类。UNIVERSAL提供了一些方法可供使用、继承和重写。
+### VERSION()方法
+返回调用者（包或类）里的变量$VERSION的值。如果你提供了版本号作为参数且比调用者里$VERSION的值还要大，那就会产生一个异常。
+```
+use Modern::Perl;
+use Test::More;
+unshift (@INC, "./");
+require "Duck.pm";
+my $duck_object = Duck->new(
+  name => 'duck',
+  flyable => 1,
+);
+say Duck->VERSION; # prints 1.23
+say $duck_object->VERSION; # prints 1.23
+say $duck_object->VERSION( 0.0 ); # prints 1.23
+say $duck_object->VERSION( 1.23 ); # prints 1.23
+say $duck_object->VERSION( 2.0 ); # exception!
+
+[huawei@n148 perl]$ perl 2.pl 
+1.23
+1.23
+1.23
+1.23
+Duck version 2 required--this is only version 1.23 at 2.pl line 13.
+```
+### DOES()方法
+是用来进行角色机制判断的，参数是调用者和角色名，如果调用者实现了该角色就返回真值（角色实现的机制可以有很多，如继承、委托、组成、角色应用或其他机制）。  
+默认DOES()的实现机制就是通过isa()方法，因为继承（isa()用于继承）就是这样一个机制：一个类实现了一个角色。
+```
+此案例仅演示调用，但不是很合适，待将来替换
+
+use Modern::Perl;
+use Test::More;
+use Test::Class::Load;
+
+unshift (@INC, "./");
+require "Duck.pm";
+my $duck_object = Duck->new(
+  name => 'duck',
+  flyable => 1,
+);
+
+say $duck_object->DOES( 'Duck' ); # prints 1
+say $duck_object->DOES( 'Animal' ); # prints 1
+
+[huawei@n148 perl]$ perl 2.pl 
+1
+1
+```
+### can()方法
+用来判断调用者是否具有某方法。参数为方法名字符串，如果调用者具有该方法则返回该方法引用，否则就返回假值。你可以在类、对象、包上调用can()方法。
+```
+use Modern::Perl;
+use Test::More;
+
+unshift (@INC, "./");
+require "Duck.pm";
+my $duck_object = Duck->new(
+  name => 'duck',
+  flyable => 1,
+);
+
+if (my $meth = $duck_object->can('fly'))
+{
+	$duck_object->$meth();
+}
+if (my $meth = Duck->can('fly'))
+{
+	$duck_object->$meth();
+}
+
+[huawei@n148 perl]$ perl 2.pl 
+It can fly
+It can fly
+
+```
+### isa()方法
+isa()方法接受一个字符串，可以是类名或类型名（SCALAR, ARRAY, HASH, Regexp, IO,CODE）。可以把它当成类方法或实例方法来使用，如果调用者派生于或就是给定类（或调用者就是指定类型的bless过的引用）则返回真。  
+任何类都可以重写isa()方法。
+```
+use Modern::Perl;
+use Test::More;
+use Test::Class::Load;
+
+unshift (@INC, "./");
+require "Duck.pm";
+my $duck_object = Duck->new(
+  name => 'duck',
+  flyable => 1,
+);
+
+say $duck_object->isa( 'Duck' ); # prints 1
+say $duck_object->isa( 'Animal' ); # prints 1
+```
 ## Moose
 Moose是一个完整的面向对象系统，功能齐全而且易于使用。它不是Perl核心模块的一部分，所以需要从CPAN上下载、安装才能使用
 ### 类、方法、属性
@@ -7903,6 +8038,7 @@ sub whatamI {
 package Duck;
 require "Animal.pm";
 
+our $VERSION = '1.23';
 use Moose;
 extends 'Animal';
 has 'flyable' => (
