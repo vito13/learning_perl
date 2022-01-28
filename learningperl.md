@@ -3499,7 +3499,14 @@ if ($ok){
 * 第三种：是eval无法捕获的错误是警告，不管是由用户发出的(通过warn函* 数)，还是perl自己内部发出的(通过打开-W这个命令行选项，或者使用* use warning编译指令。要让eval捕获警告专门的一套机制，请参考perl文* 档中_WARN_伪信号相关的内容)
 * 第四种：是exit操作符会立即终止程序运行，就算从eval块内部的子程序* 来调用它
 ## Try::Tiny
-提供了try、catch、finally的语法
+编写非常安全和合理的异常处理器非常困难。来自 CPAN Try::Tiny 发行模块非常简短，易于安装， 易于理解，提供了try、catch、finally的语法。同时也易于使用：
+```
+use Try::Tiny;
+
+my $fh = try { open_log_file( 'monkeytown.log' ) }
+catch { log_exception( $_ ) };
+```
+用try 代替了 eval，try捕获了异常后，catch语句块就会执行。异常会放在$_里面。
 ## AUTOLOAD
 Perl 提供了一种机制，可以截获不存在方法的调用。这样就可以只定义所需的函数或提供有趣的错误信息和警告。
 ```
@@ -6444,6 +6451,35 @@ use CGI qw(:all);
 [huawei@n148 perl]$ echo $PERL5LIB
 /home/huawei/perl5/lib/perl5:/home/huawei/perl5/lib/perl5:/home/huawei/perl5/lib/perl5
 ```
+## 检查模块是否被加载
+如果知道模块名字，就可以通过查看%INC来检测模块是否被加载。当使用use或require加载代码时，Perl会在%INC中保存记录：键是模块的文件路径，值是该模块的在磁盘上的全路径。  
+```
+举个例子，加载 Modern::Perl时等效于:
+$INC{'Modern/Perl.pm'} => '/path/to/perl/lib/site_perl/5.12.1/Modern/Perl.pm';
+```
+要测试是否加载一个模块。就是看是否存在该键：
+```
+use Modern::Perl;
+sub module_loaded
+{
+	(my $modname = shift) =~ s!::!/!g;
+	return exists $INC{ $modname . '.pm' };
+}
+say module_loaded('Modern::Perl');
+```
+## 检测一个包是否存在
+任何继承UNIVERSAL的包都会提供一个can()方法。如果包不存在，Perl会抛出异常（无效的调用者），可以使用eval来包装下：
+```
+use Animal;
+my $pkg='Animal';
+say "$pkg exists" if eval { $pkg->can( 'can' ) };
+```
+## 检查模块的版本
+模块并非一定要提供版本号，但是每一个包都会从UNIVERSAL类继承VERSION()方法.VERSION() 返回模块的版本号（如果有）；否则返回undef；如果模块不存在也返回undef。
+```
+use Animal;
+say Animal->VERSION;
+```
 ## 手动指定use路径
 ```
 库文件
@@ -8013,6 +8049,13 @@ set enable 1
 Can't extinguish unlit light source! at /home/huawei/perl5/lib/perl5/x86_64-linux-thread-multi/Moose/Meta/Method/Overridden.pm line 38.
 set enable 0
 ```
+### with、DOES、isa、class、method、role
+* Moose和它的MOP（meta-object protocol元对象协议）提供了更优雅的语法来使用类和对象
+* MooseX::Declare模块增加了class，role，和method关键字，这些关键字可以使代码更加简洁。
+* 还有一个选择就是Moops模块
+* Moose非常强大也非常大，还有个小型版的Moose叫Moo，它更快，资源占用更低。
+### 反射
+* Class::MOP（Class::MOP）简化了许多对象系统中的反射任务
 ## 从定义类到简单基类
 下面的命令使用了缺省参数，见$HOME/.module-starter/config内的配置
 ```
@@ -8215,21 +8258,84 @@ ok 2 - bye() works
 ## Test::More
 提供了更多更广泛的对 testcase 是否成功的支持  
 ```
-ok 			判断 testcase ok 	
-			ok($got op $expected,$test_name);
-is/isnt 	字符串比较 	
+ok 			判断布尔值为t	
+			ok(布尔值, “描述此条测试目的的字符串”);
+			只会提供失败测试条目的行号
+			ok( 1, 'the number one should be true' );
+			ok( !'', 'the empty string should be false' );
+
+is/isnt 	is()函数相当于使用Perl的eq操作符来比较2个值，如果值相等就认为测试通过
+			s() and isnt()都是进行字符串的比较（相当于使用的是eq，ne操作符）
 			is($got,$expected,$test_name);
   	  		isnt($got,$expected,$test_name);
+			is() 显示未能匹配的值。
+			is( 4, 2 + 2, 'addition should work' );
+			isnt( 'pancake', 100, 'pancakes are numeric' );
+
 like/unlike 正则表达式比较 	
 			like( $got, qr/expected/, $test_name );
 			nlike( $got, qr/expected/, $test_name );
 cmp_ok 		可以指定操作符地比较 	
 			cmp_ok($got,$op,$expected,$test_name);
-can_ok 		被测模块或对象的方法 	
-			can_ok($module,@methods)			
-isa_ok 		对象是否被定义或对象的实例变量确实是已定义的引用 	
+
+			cmp_ok($auth_nologin_times, ">=" ,1, "$auth_nologin_times >= 1"); 
+			cmp_ok($ret, 'eq','r4',  'r4');
+			
+can_ok 		用来验证一个类或对象是否具有某方法	
+			can_ok($module,@methods)		
+```
+```
+use Modern::Perl;
+use Test::More;
+unshift (@INC, "./");
+require "Duck.pm";
+my $duck_object = Duck->new(
+  name => 'duck',
+  flyable => 1,
+);
+can_ok( $duck_object, 'whatamI' );
+can_ok( $duck_object, 'fly' );
+done_testing();
+
+[huawei@n148 perl]$ perl 2.pl 
+ok 1 - Duck->can('whatamI')
+ok 2 - Duck->can('fly')
+1..2
+[huawei@n148 perl]$ prove 2.pl 
+2.pl .. ok   
+All tests successful.
+Files=1, Tests=2,  0 wallclock secs ( 0.02 usr  0.00 sys +  0.14 cusr  0.02 csys =  0.18 CPU)
+Result: PASS
+```
+```	
+isa_ok 		测试一个类或对象是否继承了其他类：
 			isa_ok($object,$class,$object_name);
-			isa_ok($subclass,$class,$object_name);		
+			isa_ok($subclass,$class,$object_name);	
+```
+```
+use Modern::Perl;
+use Test::More;
+unshift (@INC, "./");
+require "Duck.pm";
+my $duck_object = Duck->new(
+  name => 'duck',
+  flyable => 1,
+);
+isa_ok( $duck_object, 'Duck' );
+isa_ok( $duck_object, 'Animal' );
+done_testing();
+
+[huawei@n148 perl]$ prove 2.pl 
+2.pl .. ok   
+All tests successful.
+Files=1, Tests=2,  0 wallclock secs ( 0.01 usr  0.00 sys +  0.15 cusr  0.02 csys =  0.18 CPU)
+Result: PASS
+[huawei@n148 perl]$ perl 2.pl 
+ok 1 - An object of class 'Duck' isa 'Duck'
+ok 2 - An object of class 'Duck' isa 'Animal'
+1..2
+```
+```
 subtest 	测试子集 	
 			subtest $name=>\&code;
 pass/fail 	直接给出通过 / 不通过 	
@@ -8238,8 +8344,25 @@ pass/fail 	直接给出通过 / 不通过
 use_ok 		测试加载模块并导入相应符号是否成功 	
 			BEGIN \{use_ok($module);}
 			BEGIN \{use_ok($module,@imports);}
-is_deeply 	复杂数据结构的比较 	
-			is_deeply($got,$expected,$test_name);		
+is_deeply 	用来比较2个引用的内容是否一样
+			is_deeply($got,$expected,$test_name);	
+```
+```
+use Modern::Perl;
+use Clone;
+use Test::More;
+my $numbers = [ 4, 8, 15, 16, 23, 42 ];
+my $clonenums = Clone::clone( $numbers );
+is_deeply( $numbers, $clonenums, 'clone() should produce identical items' );
+done_testing();
+
+[huawei@n148 perl]$ prove 2.pl 
+2.pl .. ok   
+All tests successful.
+Files=1, Tests=1,  0 wallclock secs ( 0.01 usr  0.01 sys +  0.03 cusr  0.00 csys =  0.05 CPU)
+Result: PASS
+```
+```				
 new_ok 		判断创建的对象是否 ok 	
 			my $obj=new_ok($class);
 			my $obj=new_ok($class=>@args);
@@ -8309,7 +8432,32 @@ ok 4 - 'caaaat' matches
 ok 5 - 'ct' does not match
 1..5
 ```
+## prove
+* 核心模块TAP::Harness，提供了prove命令来显示你最关心的信息
+* perldoc prove可查看更多的测试选项，比如并发运行测试，自动增加包含路径，递归运行所有t目录下的测试条目，优先运行慢测试。
+```
+use Modern::Perl;
+use Test::More;
+ok( 1, 'the number one should be true' );
+ok( !0, '... and the number zero should not' );
+ok( !'', 'the empty string should be false' );
+ok( '!', '... and a non-empty string should not' );
+done_testing();
+
+[huawei@n148 perl]$ prove 2.pl 
+2.pl .. ok   
+All tests successful.
+Files=1, Tests=4,  0 wallclock secs ( 0.02 usr  0.00 sys +  0.03 cusr  0.00 csys =  0.05 CPU)
+Result: PASS
+[huawei@n148 perl]$ perl 2.pl 
+ok 1 - the number one should be true
+ok 2 - ... and the number zero should not
+ok 3 - the empty string should be false
+ok 4 - ... and a non-empty string should not
+1..4
+```
 ## Test::Exception
+提供了保证代码正确,不抛出异常的函数
 ```
 use Modern::Perl;
 use Test::More tests => 6;
@@ -8425,7 +8573,15 @@ ok 5 - File::Util->can(...)
 ```
 
 ## 测试覆盖率
-Devel::Cover模块可用于对函数、语句、分支、条件各自进行统计，待完善
+Devel::Cover模块可用于对函数、语句、分支、条件各自进行统计，分析测试套件的执行情况并报告经由实际测试代码的数量。一般说来，覆盖率越高越好────虽然不是总能达到 100% 覆盖率，但 95% 要比 80% 好上不少。
 
-  
-
+## 其他测试模块
+* Test::Fatal帮助你测试代码抛出异常是否合理，类似Test::Exception。
+* Test::MockObject和Test::MockModule帮助你进行仿真
+* Test::WWW::Mechanize用来测试WEB程序。Plack::Test，Plack::Test::Agent和子类* Test::WWW::Mechanize::PSGI甚至允许你在测试时不使用额外的WEB服务器
+* Test::Database提供函数来测试数据库的使用和滥用。DBICx::TestDatabase帮助你测试数据库* schemas。
+* Test::Class提供了另一个组织测试套件的机制。它允许你创建特定测试方法的类，而且可以继承。* 这是一个很好重用测试套件的方法。
+* Test::Differences测试字符串和数据结构是否一样，并且在诊断信息中显示差异信息。 * Test::LongString增加了类似的断言。
+* Test::Deep用来测试嵌套数据。
+* Devel::Cover会分析测试套件的执行情况，报告你的代码数量，报告覆盖率。
+* Test::Most集成了几个有用的测试模块。
