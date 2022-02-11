@@ -3383,7 +3383,21 @@ warn qq@Something went wrong!@;
 Something went wrong!
 Something went wrong! at 2.pl line 3.
 ```
-## carp
+## confess
+confess与die类似，但提供了从产生错误处的栈回溯追踪
+```
+sub withdraw {
+    my ($self, $amount) = @_;
+    my $current_balance = $self->balance();
+	# 检测要取的钱要少于自己有的，否则就透支了，
+    ($current_balance >= $amount) || confess "Account overdrawn";
+    $self->balance($current_balance - $amount);
+}
+
+huawei@n148 perl]$ perl 2.pl 
+Account overdrawn at 2.pl line 21.
+        BankAccount::withdraw('BankAccount=HASH(0x2203580)', 500) called at 2.pl line 46
+```
 ## die、warn
 * Perl自带了warn 函数用于触发一个警告信息，不会有其他操作，输出到 STDERR(标准输出文件)，die 函数类似于 warn, 但它会执行退出。
 * $ !变量代表errmsg，但并非所有的错误都有$ !，只有涉及到系统调用且出错时才有。
@@ -3541,7 +3555,58 @@ In AUTOLOAD(filling, apple) for bake_pie!
 In AUTOLOAD(filling, apple) for main::bake_pie!
 mmm
 ```
+# 信号处理
+## linux中的信号signal
+* 信号就是编程里俗称的中断，它使监视与控制其他进程变为有可能。
+* 用来通知进程发生了异步事件。进程之间可以互相通过系统调用kill发送软中断信号
+* 发送进程没有任何办法获取任何形式的返回，它只能知道该信号已经合法发送出去了。发送者也接收不到任何接收进程对该信号做的处理的信息
+* 内核也可以因为内部事件而给进程发送信号，通知进程发生了某个事件。
+* 信号只是用来通知某进程发生了什么事件，并不给该进程传递任何数据。
+* 要想查看这些信号和编码的对应关系，可使用命令：kill -l
+* 全部信号看这里 https://blog.csdn.net/tennysonsky/article/details/46010505
+## Perl信号的处理
+* Perl 提供了%SIG 这个特殊的默认HASH，包含指向用户定义信号句柄的引用
+* 使用’$SIG{信号名}’截取信号,在perl程序中出现这个信号时,执行对应的回调
+```
+my$i=1;
+while(1){
+    $i=$i+1;
+    print$i."\n";
+}
 
+sub yoursub{
+    print" exit ... \n";
+    exit 0;
+}
+
+BEGIN{
+    $SIG{TERM}=$SIG{INT}=\&yoursub;
+}  
+
+启动程序，BEGIN中注册回调
+（此处使用取地址赋值，也可以使用匿名方式如
+$SIG{INT} = sub { ... };）
+ctrl+c会导致INT信号，随即触发回调
+```
+注册die的回调
+```
+BEGIN{
+    $SIG{__DIE__}=$SIG{__WARN__}=\&handler_fatal;
+}  
+
+sub handler_fatal {
+    print"Content-type: text/html\n";
+    print"@_&", "\n";
+}
+
+die ".x.x.x.";
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/2.pl"
+Content-type: text/html
+.x.x.x. at /home/huawei/playground/perl/2.pl line 14.
+&
+.x.x.x. at /home/huawei/playground/perl/2.pl line 14.
+```
 # 正则
 默认搜索对象是$_，Perl的正则表达式的三种形式：
 * 匹配：m//
@@ -6377,21 +6442,103 @@ rename 'oldfile', 'newfile';
 * 面向对象模块  
   相当于类定义，可以通过方法调用来访问
 ## 换国内源
+https://www.shuzhiduo.com/A/pRdBOKZnzn/
+
 	1 在 http://mirrors.cpan.org/ 搜china，找到合适的镜像地址。
 	2 vi /home/huawei/.cpan/CPAN/MyConfig.pm
 	3 将'urllist' => [q[http://mirrors.neusoft.edu.cn/cpan/]], 中的地址换为新地址
 	4 保存完毕
+## cpan
+cpan命令是随perl一起安装的一个perl脚本
+```
+-a：创建CPAN.pm的autobundle
+-D module：查看模块的详细属性信息。例如是否安装，安装的版本号，最新的版本号，对应的模块路径，对应的源码包文件路径，谁维护的
+-g module：下载最新版本的模块到当前目录
+-i module：安装指定的模块
+-j Config.pm：指定CPAN配置数据的文件
+-J：以CPAN.pm相同的格式dump当前的配置文件
+-O：列出过期的模块
+-v：输出cpan脚本的版本号以及CPAN.pm的版本号
+```
 ## 安装模块
-其实也可以手动安装，也就是下载解压编译安装...待完善
 ```
 [huawei@n148 perl]$ cpan -a						# 查看已安装模块
 [huawei@n148 perl]$ cpan -i Term::ANSIScreen	# 安装模块
 [huawei@n148 perl]$ perldoc Term::ANSIScreen	# 查看模块说明
 ```
-## 查看文档
+## 查看模块的信息
+```
+[root@redisa-b ~]# cpan -D File::Utils
+Reading '/root/.cpan/Metadata'
+  Database was generated on Wed, 19 Sep 2018 20:17:03 GMT
+File::Utils
+-------------------------------------------------------------------------
+        (no description)
+        P/PE/PEKINGSAM/File-Utils-0.0.5.tar.gz     # 模块的distribution id
+        /usr/local/share/perl5/File/Utils.pm       # 模块的安装路径
+        Installed: 0.0.5                           # 已安装的模块版本号
+        CPAN:      0.000005  up to date            # CPAN中最新的模块版本号
+        Yan Xueqing (PEKINGSAM)                    # 作者名称及CPAN中的ID
+        yanxueqing10@163.com
+```
+## 查询一个模块是否已安装
+perldoc 即可，如果安装了就能正常输出对应的文档，如果没有安装，则报错
+## 查看所有已安装的模块
+cpan -a可能会有点慢。。。
+```
+cpan -a
+cpan -a | grep Moose
+```
+## CPANMinus
+这个是真正的完全一键安装，无需任何配置。而且，它没有交互式模式。
+cpanm 其实只是一个可执行文件而已。将它下载到 bin 目录，然后添加执行权限就可以用了
+```
+安装
+[huawei@n148 ~]$ curl -L http://cpanmin.us | perl - App::cpanminus
+[huawei@n148 ~]$ whereis cpanm
+cpanm: /usr/bin/cpanm /usr/local/bin/cpanm /home/huawei/perl5/bin/cpanm
+
+添加与删除模块
+[huawei@n148 ~]$ cpanm Perl::LanguageServer
+[huawei@n148 ~]$ cpanm -U Perl::LanguageServer
+```
+## 手动安装模块
+```
+从网上下载好模块源码包，然后解压，进入源码包目录
+wget https://cpan.metacpan.org/authors/id/X/XS/XSAWYERX/Data-Dumper-2.172.tar.gz
+tar xf Data-Dumper-2.172.tar.gz
+cd Data-Dumper-2.172/
+
+共有2种build方式，Makefile.PL与Build.PL，依据哪个文件存在则使用哪个
+（1）Makefile.PL
+perl Makefile.PL
+如果想要指定安装路径，则加上INSTALL_BASE即可：
+perl Makefile.PL INSTALL_BASE=/home/perlapps
+
+make
+make install
+
+（2）Build.PL
+perl Build.PL
+如果想要指定安装路径，则
+perl Build.PL −−install_base /home/perlapps
+
+./Build
+./Build install
+
+
+如果是手动指定的安装路径，还需要设置模块查找路径环境变量：
+export PERL5LIB=/home/perlapps 此值可能不同
+```
+## 查看文档与包的安装路径
 安装模块后，都会有对应的文档，可以通过perldoc MODULE_NAME来获取模块的使用帮助。
 ```
 [huawei@n148 perl]$ perldoc File::Basename
+
+查找包安装路径
+[huawei@n148 ~]$ perldoc -l Moose
+/home/huawei/perl5/lib/perl5/x86_64-linux-thread-multi/Moose.pm
+
 ```
 ## 导入模块 use
 * 当使用关键字use加载一个模块时，Perl就会自动调用一个叫import()的方法
@@ -6986,6 +7133,35 @@ KEY     _<Dumper.c              VALUE:   *main::_<Dumper.c
 从符号表中读取变量:  111
 类型团是一个散列，存储的值是引用:  CODE(0x27212a0)
 ```
+# Debug Output
+## Data::Dumper
+可以输出结构，案例此文档中搜索即可
+## Data::Printer
+可以输出对象且有颜色
+```
+use Data::Printer;
+use LWP::UserAgent;
+
+my $ua = LWP::UserAgent->new;
+p $ua;
+```
+## Data::Show
+类似Dumper，省掉了print
+```
+use strict;
+use warnings;
+use Data::Show;
+
+my @array = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+
+my %hash  = ( foo => 1, bar => { baz => 10, qux => 20 } );
+
+my $href = \%hash;
+show @array;
+show %hash;
+show $href;
+```
+
 # 句柄
 句柄实际上包含文件、管道、进程和套接字的读写。
 ## open、写入文本、close
@@ -7185,6 +7361,16 @@ while(read(IN_FD, my $buffer,1024)){
 }
 close(IN_FD);
 close(OUT_FD);
+```
+## uft8编码文本文件写入与读取
+```
+Write to a file：
+use open qw( :encoding(UTF-8) :std ); # Make UTF-8 default encoding
+
+
+Opening UTF8 Text Files：
+open my $filehandle, '<:raw:encoding(utf-8)', 'path/to/file' 
+   or die "Can't open $name_of_file, $!";
 ```
 ## 设定当前输出句柄 select
 默认输出句柄是STDOUT，可以使用select指定默认句柄
@@ -7912,7 +8098,7 @@ use Modern::Perl;
 		say 'Meow!';
 	}
 
-	# 定义属性，ro 可读但不可写
+	# 定义属性，ro 可读但不可写read-only
 	has 'name1', is => 'ro', isa => 'Str';
 	has 'name2' => ( is => 'ro', isa => 'Str' );
 	has( 'name3', 'is', 'ro', 'isa', 'Str' );
@@ -7928,7 +8114,7 @@ use Modern::Perl;
 	# 属性的类型可以缺省
 	has 'age1', is => 'ro';
 	has 'age2', is => 'ro', isa => 'Int';
-	# rw 可读且可写
+	# rw 可读且可写read/write 
 	has 'diet', is => 'rw';
 }
 
@@ -8076,9 +8262,10 @@ $duck_object->whatamI();
 [huawei@n148 perl]$ perl 2.pl 
 This is a duck
 ```
+### 覆盖与重载
 * 子类的属性名字前面使用加号，表示在子类中会对这个继承来的属性做一些特别的事情，下例里是重写了默认值
-* 子类还可以重写方法，见下例的Glowstick::extinguish
-* super()指明去最近的父类调度当前的方法，见下例的Cranky
+* 子类还可以重写方法（是覆盖），见下例的Glowstick::extinguish
+* super()指明去最近的父类调度当前的方法（原始的老式样，moose使用新的after与before），见下例的Cranky
 ```
 演示子类覆盖父类的属性默认值
 
@@ -8185,6 +8372,130 @@ set enable 1
 Can't extinguish unlit light source! at /home/huawei/perl5/lib/perl5/x86_64-linux-thread-multi/Moose/Meta/Method/Overridden.pm line 38.
 set enable 0
 ```
+### 新式的重载：after与before
+* after是先调用父类实现，然后再调用子类实现
+* before则反之
+```
+use Modern::Perl;
+use Test::More;
+
+package Point;
+use Moose;     
+has 'x' => (isa => 'Int', is => 'ro');
+has 'y' => (isa => 'Int', is => 'rw');
+
+sub clear {
+    my $self = shift;
+    $self->{x} = 0;
+    $self->y(0);    
+}
+sub say {
+	my $self = shift;
+	say "x: $self->{x}, y: $self->{y}";
+}
+
+package Point3D;
+use Moose;
+extends 'Point';
+has 'z' => (isa => 'Int', is => 'ro');
+   
+after 'clear' => sub {	# after 先调用父类实现，然后调用子类实现
+    my $self = shift;
+    $self->{z} = 0;
+};
+after 'say' => sub {
+	my $self = shift;
+	say "z: $self->{z}";
+};
+
+my $point = Point->new(x => 1, y => 2);
+$point->say();
+$point->clear();
+my $point3d = Point3D->new(x => 1, y => 2, z => 3);
+$point3d->say();
+$point3d->clear();
+$point3d->say();
+
+
+[huawei@n148 perl]$ perl 2.pl 
+x: 1, y: 2
+x: 1, y: 2
+z: 3
+x: 0, y: 0
+z: 0
+```
+关于before的案例，此案例仅演示语法，感觉不是选的不好
+```
+use Modern::Perl;
+use Test::More;
+
+# 基类普通账号
+package BankAccount;
+use Moose;
+# 余额
+has 'balance' => (isa => 'Int', is => 'rw', default => 0);
+
+# 存钱
+sub deposit {
+    my ($self, $amount) = @_;
+    $self->balance($self->balance + $amount);
+}
+
+# 取钱
+sub withdraw {
+    my ($self, $amount) = @_;
+    my $current_balance = $self->balance();
+	# 检测要取的钱要少于自己有的，否则就透支了
+    ($current_balance >= $amount) || confess "Account overdrawn";
+    $self->balance($current_balance - $amount);
+}
+sub say{
+	my $self = shift;
+	say "balance: $self->{balance}";
+}
+
+# 子类，包含一个自身类型的成员，用于透支的操作
+package CheckingAccount;
+use Moose;
+extends 'BankAccount';
+has 'overdraft_account' => (isa => 'BankAccount', is => 'rw'); # 这里有个自身类型的属性
+
+before 'withdraw' => sub { # 先执行自己再执行父类
+    my ($self, $amount) = @_;
+    my $overdraft_amount = $amount - $self->balance(); # 要取的钱大于自己有的
+    if ($self->overdraft_account && $overdraft_amount > 0) { # overdraft_amount>0则代表自己钱不够
+        $self->overdraft_account->withdraw($overdraft_amount);	# 从别人那先减去自己差的那部分钱，如果别人那也不够则confess崩了
+        $self->deposit($overdraft_amount); # 从自己账户里减去要取的
+    }
+};
+
+my $savings_account  = BankAccount->new(balance => 250);
+$savings_account->deposit(100);
+$savings_account->withdraw(200);
+$savings_account->say();
+my $checking_account = CheckingAccount->new(balance => 100,overdraft_account => $savings_account);
+$checking_account->deposit(1000);
+$checking_account->say();
+$checking_account->withdraw(200);
+$checking_account->say();
+$checking_account->withdraw(1000); # 此处后自己没钱了，且透支账户也减了自己差的那部分
+$savings_account->say();
+$checking_account->say();
+
+[huawei@n148 perl]$ perl 2.pl 
+balance: 150
+balance: 1100
+balance: 900
+balance: 50
+balance: 0
+```
+### moose待完善内容
+```
+Recipe3：weak_ref predicate
+Recipe4：ArrayRef subtype
+Recipe5：coerce via
+```
+
 ### with、DOES、isa、class、method、role
 * Moose和它的MOP（meta-object protocol元对象协议）提供了更优雅的语法来使用类和对象
 * MooseX::Declare模块增加了class，role，和method关键字，这些关键字可以使代码更加简洁。
@@ -8721,3 +9032,48 @@ Devel::Cover模块可用于对函数、语句、分支、条件各自进行统�
 * Test::Deep用来测试嵌套数据。
 * Devel::Cover会分析测试套件的执行情况，报告你的代码数量，报告覆盖率。
 * Test::Most集成了几个有用的测试模块。
+
+# 升级perl
+```
+1：查询perl的真实安装路径
+whereis perl
+真实安装路径为：/usr/bin/perl
+
+2 wget https://www.cpan.org/src/5.0/perl-5.28.1.tar.gz
+tar -xzf perl-5.28.1.tar.gz  会解压到perl528目录中
+cd perl-5.28.1
+./Configure -des -Dprefix=/usr/local/perl -Dusethreads -Uversiononly
+make
+make test
+make install
+
+
+去除老版本perl
+cd /usr/bin
+mv perl perl.old # 换个名字
+建立软连接，指向usr/bin/中
+[huawei@n148 perl-5.28.1]$ sudo ln -s /home/huawei/perl528/perl-5.28.1/perl  /usr/bin/perl
+
+再perl -v即可
+
+
+使用此方法是个简陋的多个perl版本并存的方式，需要哪个是当前就改哪个文件为perl即可。更高级的多版本有perlbrew，未研究。。。
+```
+接着安装语言服务，用于vscode的perl支持，如果此模块已有，可以先去除后再重装，因为此模块还有很多依赖会自动安装，否则可能需要每个都手动了
+```
+[huawei@n148 usr]$ cpanm Perl::LanguageServer
+[huawei@n148 usr]$ cpanm Perl::LanguageServer::DebuggerInterface
+```
+# perlbrew
+https://perlbrew.pl/Perlbrew-%E4%B8%AD%E6%96%87%E7%B0%A1%E4%BB%8B.html
+```
+[huawei@n148 bin]$ cpan App::perlbrew
+[huawei@n148 bin]$ perlbrew init
+[huawei@n148 bin]$ source ~/perl5/perlbrew/etc/bashrc
+
+让perlbrew使用本地镜像：
+[huawei@n148 bin]$ export PERLBREW_CPAN_MIRROR="http://mirrors.163.com/cpan"
+
+[huawei@n148 bin]$ perlbrew install 5.24.0
+
+```
