@@ -295,6 +295,76 @@ say !!"abc";   # 1
 say !!"";      # 空
 say ((!!"") + 2);  # 2
 ```
+## 位操作
+用下面的案例演示了二进制用于mask标志位的常用方式
+```
+#!/usr/bin/perl
+
+my $write=0;		# 	00000000
+my $red=1;			#	00000001
+my $green=1<<1;		#	00000010
+my $blue=1<<2;		#	00000100
+
+sub setmask{
+	my $val=shift;
+	my $col=shift;
+	$val |=  $col;    # set bit
+	return $val;
+}
+
+sub unsetmask{
+	my $val=shift;
+	my $col=shift;
+	$val &=  ~$col;    # clear bit
+	return $val;
+}
+
+sub show{
+	my $val=shift;
+	my $Str = sprintf("%08b",$val);
+	print $Str, "\n";
+	if ($val == $write)  # check bit
+	{
+		print "is write", "\n";
+	}
+	if ($val & $red)  # check bit
+	{
+		print "has red", "\n";
+	}
+	if ($val & $green)  # check bit
+	{
+		print "has green", "\n";
+	}
+	if ($val & $blue)  # check bit
+	{
+		print "has blue", "\n";
+	}
+}
+
+my $v1=$write;
+$v1 =setmask($v1, $green);
+$v1 =setmask($v1, $red);
+$v1 =setmask($v1, $blue);
+show($v1);
+
+$v1 =unsetmask($v1, $red);
+$v1 =unsetmask($v1, $green);
+show($v1);
+
+$v1 =unsetmask($v1, $blue);
+show($v1);
+
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/2.pl"
+00000111
+has red
+has green
+has blue
+00000100
+has blue
+00000000
+is write
+```
 ## 检测undef
 ```
 my $test;
