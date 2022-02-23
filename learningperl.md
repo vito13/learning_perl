@@ -194,6 +194,24 @@ $n = "   1234";         # 有前缀空白的字符串数值
 $n = "  123a";          # 可以当数值123使用，但warnings时会警告
 ```
 Perl可以将字符串格式的数值当作数值来使用
+## 常量
+```
+use constant COUNT => 100;
+print COUNT, "\n";
+
+use constant WEEKDAYS => qw (Sunday Monday Tuesday Wednesday Thursday Friday Saturday);
+print "Today is ", (WEEKDAYS)[1], "\n";
+
+use constant {
+    AAA => "aaa",
+    BBB=> "bbb",
+    MIN_TOTAL => 12,
+    SCORE_PASS => 90,
+    SCORE_RED => 70,
+};
+print AAA;
+print SCORE_PASS;
+```
 ## 判断数据类型
 ```
 #!/usr/bin/perl
@@ -1544,7 +1562,24 @@ printf "%b\n", 3;    # 11
 printf "%x\n", 50;   # 32
 ```
 
+## pack 和 unpack 函数
+功能很强大待细致研究，暂只用于ip地址打包
+```
+my ($a,$b,$c,$d)=split(/\./, '18.157.0.125');
+print "$a\t$b\t$c\t$d\n";
+my $packaddr=pack('C4',$a,$b,$c,$d);
+print "$packaddr\n";
+($a,$b,$c,$d)=unpack('C4',$packaddr);
+print "$a\t$b\t$c\t$d\n";
+my $addr=join('.',$a,$b,$c,$d);
+print "$addr\n";
 
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+18      157     0       125
+�}
+18      157     0       125
+18.157.0.125
+```
 
 # 字符串相关
 ## 单引号和双引号
@@ -3633,10 +3668,13 @@ mmm
 * 内核也可以因为内部事件而给进程发送信号，通知进程发生了某个事件。
 * 信号只是用来通知某进程发生了什么事件，并不给该进程传递任何数据。
 * 要想查看这些信号和编码的对应关系，可使用命令：kill -l
-* 全部信号看这里 https://blog.csdn.net/tennysonsky/article/details/46010505
+* 信号处理回调中应尽量少逻辑，如仅改变一个全局变量之类操作，避免io，内存操作
+* 信号处理逻辑有可能也无法完全做到可移植，不同系统有可能未实现
+* 全部信号看这里 https://blog.csdn.net/tennysonsky/article/details/46010505	也可参考perl网络编程p40
 ## Perl信号的处理
 * Perl 提供了%SIG 这个特殊的默认HASH，包含指向用户定义信号句柄的引用
 * 使用’$SIG{信号名}’截取信号,在perl程序中出现这个信号时,执行对应的回调
+* 可以设置为DEFAULT为恢复默认处理，以及IGNORE为忽略
 ```
 my$i=1;
 while(1){
@@ -3677,6 +3715,15 @@ Content-type: text/html
 &
 .x.x.x. at /home/huawei/playground/perl/2.pl line 14.
 ```
+## 发送信号kill
+kill('signal', @Processes))给一组进程发送信号。signal是发送的数字信号
+* 超级用户可以给任何进程发信号
+* 普通用户只能同级别进程发信号
+* 信号值0，则返回能够被发送的进程数量
+* 信号值负数则是杀掉此号绝对值所属组的所有进程  
+* kill('INT', $$)是自杀
+
+kill('KILL', 进程号1, 进程号2...);
 # 正则
 默认搜索对象是$_，Perl的正则表达式的三种形式：
 * 匹配：m//
@@ -6301,7 +6348,7 @@ total 12
 -rw-rw-r-- 1 huawei huawei  13 Dec  2 16:56 tempCodeRunnerFile.pl
 ```
 ## system
-默认情况下输出到STDOUT指向的地方，也可以使用重定向运算符 > 输出到指定文件。返回0则正常。会创建子进程执行命令，父进程等待子进程完毕再继续
+默认情况下输出到STDOUT指向的地方，也可以使用重定向运算符 > 输出到指定文件。返回0则正常，-1是失败。会创建子进程执行命令，父进程等待子进程完毕再继续
 ```
 $PDDATA = "我是 Perl 的变量";
 system('echo $PDDATA');  # $PATH 作为 shell 环境变量
@@ -6316,6 +6363,21 @@ system("echo \$PDDATA"); # 转义 $
 ## fork与exec
 fork() 函数用于创建一个新进程。在父进程中返回子进程的PID，在子进程中返回0。如果发生错误（比如，内存不足）返回undef，并将$!设为对应的错误信息。fork 可以和 exec 配合使用。exec 函数执行完引号中的命令后进程即结束（不会创建子进程）。
 ```
+print "PID=$$\n";
+my $child=fork();
+die $! unless defined $child;
+if ($child>0){
+	print "parent process: PID=$$, child=$child\n"; # 父进程
+} else {
+	my $ppid=getppid();
+	print "child process: PID=$$, parent=$ppid\n";	# 子进程
+}
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/2.pl"
+PID=112138
+parent process: PID=112138, child=112139
+child process: PID=112139, parent=112138
+---------------------------------
 if(!defined($pid = fork())) {
    # fork 发生错误返回 undef
    die "无法创建子进程: $!";
@@ -6373,9 +6435,7 @@ Thu Dec  2 17:37:09 CST 2021
 ## IPC::System::Simple
 system、systemx、capture、capturex
 ## 通过文件句柄执行外部进程
-## 发送及接收信号 Kill
-kill('signal', (Process List))给一组进程发送信号。signal是发送的数字信号，9为杀掉进程。  
-kill('KILL', 进程号1, 进程号2...);
+
 # 目录操作
 ## 获取当前路径
 ```
@@ -6448,16 +6508,17 @@ say __FILE__;	# 一样
 	-f $file 	如果 $file 是普通文件，则为真
 	-d $file 	如果 $file 是目录，则为真
 	-l $file 	如果 $file 是符号链接，则为真
-	-p $file 	如果 $file 是命名的管道或 FIFO，则为真
-	-S $file 	如果 $file 是套接字，则为真
+	-p HANDLE	检测文件句柄是个管道，见管道案例
+	-S HANDLE   检测文件句柄是socket
 	-b $file 	如果 $file 是块特殊文件，则为真
 	-c $file 	如果 $file 是字符特殊文件，则为真
 	-u $file 	如果 $file 具有 setuid 位设置，则为真
 	-g $file 	如果 $file 具有 setgid 位设置，则为真
 	-k $file 	如果 $file 具有 sticky 位设置，则为真
-	-t $file 	如果 $file 文件句柄对 tty 打开，则为真
+	-t HANDLE 	检测文件句柄是打开的终端
 	-T $file 	如果 $file 是文本文件，则为真
 ```
+
 是否存在
 say -e '/etc/passwd';
 [huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
@@ -6503,8 +6564,7 @@ unlink glob '*.t';
 ```
 rename 'oldfile', 'newfile';
 ```
-## pack 和 unpack 函数
-用于二进制文件
+
 # 模块
 模块有两种类型
 * 传统模块  
@@ -7299,7 +7359,17 @@ close(FILE);
 ## 读一个字符 getc
 getc 函数能从键盘或者文件中获得单个字符。如果碰到 EOF，getc 函数会返回空字符串。案例见tell
 
+## 读取文件第一行
+```
+use IO::File;
+my $file=shift;
+my $fn=IO::File->new($file);
+my $line=<$fn>;
+print $line;
 
+通过命令行参数指定文件名
+[huawei@n148 perl]$ /usr/bin/perl  2.pl err.txt
+```
 ## 读取文本文件
 将文件作为perl命令行的参数，perl会使用<>去读取这些文件中的内容。
 ```
@@ -7363,6 +7433,14 @@ close(FILE);
 读取一行：
 my $data=<STDIN>;
 say "$data";
+---------
+my $data=<STDIN>;
+chomp($data);
+print STDOUT "you said: $data\n";
+---------
+chomp(my $data=<>);
+print STDOUT "you said: $data\n";
+
 
 循环读取多行：
 while (defined($_=<STDIN>)){
@@ -7600,19 +7678,21 @@ Current Position: 10
 ```
 
 ## 管道 |
-带有管道操作的 Perl 脚本是不能直接在不同系统间互相移植的。
-* 输出过滤器  
-	将perl代码的输出作为外部命令的输入
+带有管道操作的 Perl 脚本是不能直接在不同系统间互相移植的。pipe增强了open函数，能返回对方的pid，可用于信号的通讯
+* 管道符号在命令前面  
+	在代码里被open的句柄用于写入数据，被写入的数据用作管道符号后面要执行的命令的标准输入内容
 ```
 使用wc计算字符串中的字符数目并输出
 
-open(MYPIPE, "| wc -w");
+my $pid=open(MYPIPE, "| wc -w");
 print MYPIPE "apples pears peaches";
+print "pipe handle\n" if -p MYPIPE;		# 检测句柄类型，见文件测试一节
 close(MYPIPE);
+print "$pid\n";
 
 [huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
 3
-
+114360
 ------------------------------------
 
 两次过滤
@@ -7633,8 +7713,8 @@ SHARED_PRELOAD_LIBRARIES = '$LIBDIR/DBMAC, $LIBDIR/PGAUDIT, $LIBDIR/PASSWORDCHEC
 STRING
 WORD MATCHING USING: THETHE
 ```
-* 输入过滤器  
-	外部命令的输出作为perl代码的输入
+* 命令后面是管道符合  
+	在代码里被open的句柄用于读取数据，被读取的内容来自管道符合前面的外部命令的标准输出
 ```
 
 将date命令的输出传递给perl
@@ -7663,6 +7743,8 @@ while( my $filename = <FINDIT> ){
 ./file.txt
 ./char.txt
 ```
+
+更高级的还有pipe()函数，详见perl网络编程p35
 ## 检查文件尾 eof
 * eof 函数用于检查是否到达文件末尾
 * 如果对文件句柄的下一次读操作是发生在文件末尾，或者文件没有打开的话，函数返回1
