@@ -383,6 +383,11 @@ has blue
 00000000
 is write
 ```
+## 除法保留小数位
+```
+my $totle1=sprintf("%.2f", $a/$b*100);
+print "$totle1 %";
+```
 ## 检测undef
 ```
 my $test;
@@ -6408,7 +6413,7 @@ unless($pid)
 }
 waitpid($pid, 0); #能运行到这里的是父进程
 ```
-使用发CHLD的信号，待细致研究
+使用发CHLD的信号
 ```
 local $SIG{CHLD} = "IGNORE";
  
@@ -6431,6 +6436,64 @@ if(!defined($pid = fork())) {
 通过子进程输出
 Thu Dec  2 17:37:09 CST 2021
 完成的进程ID: -1
+```
+## CHLD信号
+CHLD的作用是子进程结束时候会自动发送此信号给父进程，父进程对此信号进行捕获处理即可  
+案例来自perl网络编程，作用是与ftp服务器进行交互，
+
+```
+use Modern::Perl;
+use IO::Socket qw(:DEFAULT :crlf);
+
+my $socket = IO::Socket::INET->new("ftp.cesca.es:ftp") or die $@;
+my $child = fork();
+die "Can't fork: $!" unless  defined $child;
+
+if ($child) {	# 父进程的作用是读取stdin手敲的命令发往ftp服务器
+  $SIG{CHLD} = sub { exit 0 };	# 这里设置来自子进程结束时发来的CHLD信号的回调，即结束程序
+  user_to_host($socket);
+  $socket->shutdown(1);	# 关闭socket
+  sleep;	# 进入无休止休眠，等待来自子进程的CHLD信号
+
+} else {	# 子进程的作用是从ftp服务器读取返回的多行内容，ftp服务器
+  host_to_user($socket);
+  warn "Connection closed by foreign host.\n";
+}
+
+sub user_to_host {
+  my $s = shift;
+  while (<>) {	# 当标准输入关闭时候退出(ctrl+c)（父进程进入sleep），此时ftp服务器也收到了，然后再会将退出发往子进程的host_to_user，此时子进程的host_to_user也退出了，导致进程结束发送CHLD信号给父进程，进而完美结束
+    chomp;
+    print $s $_,CRLF;
+  }
+}
+
+sub host_to_user {
+  my $s = shift;
+  $/ = CRLF;
+  while (<$s>) {	# 读取结束退出
+    chomp;
+    print $_,"\n";
+  }
+}
+
+
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/5.pl"
+220 Welcome to Anella Cientifica FTP service.
+USER anonymous	这行手敲
+331 Please specify the password.
+PASS ok@better.now	这行手敲
+230 Login successful.
+HELP	这行手敲
+214-The following commands are recognized.
+ ABOR ACCT ALLO APPE CDUP CWD  DELE EPRT EPSV FEAT HELP LIST MDTM MKD
+ MODE NLST NOOP OPTS PASS PASV PORT PWD  QUIT REIN REST RETR RMD  RNFR
+ RNTO SITE SIZE SMNT STAT STOR STOU STRU SYST TYPE USER XCUP XCWD XMKD
+ XPWD XRMD
+214 Help OK.
+quit	这行手敲
+221 Goodbye.
+Connection closed by foreign host.
 ```
 ## IPC::System::Simple
 system、systemx、capture、capturex
@@ -9228,4 +9291,95 @@ https://perlbrew.pl/Perlbrew-%E4%B8%AD%E6%96%87%E7%B0%A1%E4%BB%8B.html
 
 [huawei@n148 bin]$ perlbrew install 5.24.0
 
+```
+# 网络编程
+## 基于berkeley的tcp简单echo实现
+* 伯克利风格c接口，虽然精简了一点，但简直与c的代码一样。。。
+* 繁琐的c库api映射方式
+* 底层要转为c参数很不便
+
+先启动服务器，然后再启动客户端，双方各自打印一句话后客户端断开连接  
+
+![](https://www.runoob.com/wp-content/uploads/2016/06/1466064198-6811-perl-socket.jpg)
+
+server
+```
+use Modern::Perl;
+use Socket;
+
+my $port = 7890;
+my $server = "localhost";  # 设置本地地址
+
+# 创建 socket, 端口可重复使用，创建多个连接
+socket(SOCKET, PF_INET, SOCK_STREAM, getprotobyname('tcp')) or die "无法打开 socket $!\n";
+setsockopt(SOCKET, SOL_SOCKET, SO_REUSEADDR, 1) or die "无法设置 SO_REUSEADDR $!\n";
+
+# 绑定端口并监听
+bind(SOCKET, pack_sockaddr_in($port, inet_aton($server)))  or die "无法绑定端口 $port! \n";
+listen(SOCKET, 5) or die "listen: $!";
+# 最大5个连接
+
+# 接收请求
+my $client_addr;
+while ($client_addr = accept(NEW_SOCKET, SOCKET)) {
+	print NEW_SOCKET "你已连接到服务器，但又关闭了。。。";
+	my ($port,$hisaddr) = sockaddr_in($client_addr);
+  	print "Connection from [",inet_ntoa($hisaddr),",$port]\n";
+	close NEW_SOCKET;
+}
+```
+client
+```
+use Modern::Perl;
+use Socket;
+
+# socket,connect,close都有返回值（t为成功），但通常不使用
+socket(SOCK, AF_INET, SOCK_STREAM, scalar getprotobyname('tcp')) or die "无法创建socket $!\n";
+my $port = 7890;
+my $server_ip_address = 'localhost';
+connect(SOCK, pack_sockaddr_in($port, inet_aton($server_ip_address))) or die "无法连接port $!\n";
+# pack_sockaddr_in将地址转换为二进制格式
+my $line= <SOCK>;
+print "$line\n";
+close SOCK or die "close: $!";
+```
+## 使用IO::Socket::INET重新实现echo
+* IO::Socket::INET是面向对象的方式
+* 简短了一些但也没太多。。。
+
+server
+```
+use Modern::Perl;
+use IO::Handle;
+use IO::Socket::INET;
+
+my $port = 7890;
+my $sock = IO::Socket::INET->new( Listen    => 20, 
+                                  LocalPort => $port,
+                                  Timeout   => 60*60,
+                                  Reuse     => 1) or die "无法打开 socket $!\n";
+while (1) {
+	my $session = $sock->accept;
+	print $session "你已连接到服务器，但又关闭了。。。";
+	my $peer = $session->peerhost;
+	my $port = $session->peerport;
+	print "Connection from [$peer,$port]\n";
+	close $session;
+}					  
+close $sock;
+```
+
+client  
+```
+use Modern::Perl;
+use IO::Handle;
+use IO::Socket::INET;
+
+my $port = 7890;
+my $server_ip_address = 'localhost';
+my $socket = IO::Socket::INET->new("$server_ip_address:$port") or die $@;
+# IO::Socket::INET->new方法还有其它参数，这里仅使用了最简单的方式
+my $msg_in = <$socket>;
+print $msg_in, "\n";
+$socket->close or warn $@;
 ```
