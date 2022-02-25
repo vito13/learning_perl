@@ -6149,12 +6149,13 @@ sub findindex{
 say findindex(3, qw/1 2 3 4 5/);
 ```
 ## 命令行参数 @ARGV
-* 命令行参数保存在数组@ARGV中，数组下标从0开始
-* ARGV[0]是第一个参数（非程序名称），以此类推
-* $ #ARGV保存数组最后一个元素的索引（非数组元素数量），当无参数时$#ARGV等于-1（不是零）
-* 命令行参数的总数是 $#ARGV+1
-* < ARGV >也可作为文件句柄数组进行迭代，见下面的案例
-
+```
+命令行参数保存在数组@ARGV中，数组下标从0开始
+ARGV[0]是第一个参数（非程序名称），以此类推  
+$#ARGV保存数组最后一个元素的索引（非数组元素数量），当无参数时$#ARGV等于-1（不是零）
+命令行参数的总数是 $#ARGV+1
+<ARGV>也可作为文件句柄数组进行迭代，见下面的案例
+```
 参数列表案例
 ```
 die "$0 运行需要参数\n" if $#ARGV < 0 ;
@@ -6263,6 +6264,8 @@ huawei    50751  0.0  0.0 116996  3692 pts/6    Ss   04:13   0:00 /usr/bin/bash
 huawei    73004  0.0  0.0 156964  2504 ?        S    05:49   0:00 sshd: huawei@notty
 huawei    73011  0.0  0.0 113292  1396 ?        Ss   05:49   0:00 bash
 ```
+## 命令行参数 Getopt::Long
+见ftp案例
 ## 所有变量
 变量对应的名称见 https://www.runoob.com/perl/perl-special-variables.html
 ```
@@ -6506,6 +6509,7 @@ use Cwd;
 $dir = cwd();	# 效果同pwd
 ```
 ## 创建与删除
+还可以使用File::Path的mkpath()一次创建多级目录，mkdir仅可一级。rmdir必须要求目录为空，而rmtree则任意。总之，File::Path为我们提供了另一种创建和删除目录的机制，由用户自己选用。
 ```
 创建目录
 my $dir='/tmp/test123/';
@@ -6599,7 +6603,7 @@ print "File is readable\n" if -r $file;
 print "File is writeable\n" if -w $file;
 print "File is executable\n" if -x $file;
 print "File is a regular file\n" if -f $file;
-print "File is a directory\n" if -d $file;
+print "File is a directory\n" if -d $file; 判断是否为文件夹
 print "File is text file\n" if -T $file;
 printf "File was last modified %f days ago.\n", -M $file;
 print "File has read, write, and execute set.\n" if -r $file && -w _ && -x _;
@@ -6615,8 +6619,67 @@ File is text file
 File was last modified 0.009444 days ago.
 File is zero size.
 ```
+## 文件信息 stat
+perl下的stat函数和shell下的stat命令的功能基本一致，也是取得文件的各类具体信息：stat()函数返回一个数组，下面是数组各个元素的含义：
+* dev     ：文件所属文件系统的设备ID
+* inode   ：文件inode号码
+* mode    ：文件类型和文件权限(两者都是数值表示)
+* nlink   ：文件硬链接数
+* uid     ：文件所有者的uid
+* gid     ：文件所属组的gid
+* rdev    ：文件的设备ID(只对特殊文件有效，即设备文件)
+* size    ：文件大小，单位字节
+* atime   ：文件atime的时间戳(从1970-01-01开始计算的秒数)
+* mtime   ：文件mtime的时间戳(从1970-01-01开始计算的秒数)
+* ctime   ：文件ctime的时间戳(从1970-01-01开始计算的秒数)
+* blksize ：文件所属文件系统的block大小
+* blocks  ：文件占用block数量(一般是512字节的块大小，可通过unix的stat -c "%B"获取块的字节)
 
-## 删除文件
+```
+my $filename="1.pl";
+my @arr = stat($filename);
+
+say '$dev     :',$arr[0];
+say '$inode   :',$arr[1];
+say '$mode    :',$arr[2];
+say '$nlink   :',$arr[3];
+say '$uid     :',$arr[4];
+say '$gid     :',$arr[5];
+say '$rdev    :',$arr[6];
+say '$size    :',$arr[7];
+say '$atime   :',$arr[8];
+say '$mtime   :',$arr[9];
+say '$ctime   :',$arr[10];
+say '$blksize :',$arr[11];
+say '$blocks  :',$arr[12];
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/1.pl"
+$dev     :64770
+$inode   :235958415
+$mode    :33204
+$nlink   :1
+$uid     :1004
+$gid     :1004
+$rdev    :0
+$size    :436
+$atime   :1645768651
+$mtime   :1645768651
+$ctime   :1645768651
+$blksize :4096
+$blocks  :8
+```
+返回的是文件类型和文件权限的结合体，且文件权限并非直接的8进制权限值，要计算出Unix系统中直观的权限数值(如0755、0644)，需要和0777做位运算，如下两种方式都可
+```
+printf "perm     :%04o\n",$mode & 0777;  # 将返回0644、0755类型的权限值
+my $mode = (stat($filename))[2];
+```
+
+以下是stat函数的其它一些注意事项：
+* stat函数返回布尔值表示是否成功，如t则立即设置这些属性变量，并缓存到特殊文件句柄 “ _ ” 里（你没没错，就是一个下划线），如f则返回空列表
+* 如果stat函数测试的是特殊文件句柄_，它将不会重新测试缓存文件，而是直接返回缓存的属性信息
+* 如果省略stat函数的参数，则默认测试$_
+* 对于软链接文件，stat会追踪到链接的目标。如果不想追踪，则使用lstat函数替代stat。lstat如果测试的目标不是软链接，则返回空列表。
+## 删除文件 unlink
 返回删除成功数量
 ```
 unlink '23,';
@@ -6627,7 +6690,7 @@ unlink glob '*.t';
 ```
 rename 'oldfile', 'newfile';
 ```
-
+## 链接 link,symlink
 # 模块
 模块有两种类型
 * 传统模块  
@@ -9382,4 +9445,191 @@ my $socket = IO::Socket::INET->new("$server_ip_address:$port") or die $@;
 my $msg_in = <$socket>;
 print $msg_in, "\n";
 $socket->close or warn $@;
+```
+## 简单ftp获取文件
+使用Net::FTP（出自libnet包，本类是IO::Socket与Net::Cmd的后代）实现的获取远程文件，本例$ftp对象还有很多方法未被使用，使用了默认用户名
+```
+use Modern::Perl;
+use Net::FTP;
+
+use constant HOST => 'ftp.perl.org';
+use constant DIR  => 'pub/mozilla/firefox/releases/latest';
+use constant FILE => 'KEY';
+
+my $ftp = Net::FTP->new(HOST) or die "Couldn't connect: $@\n";
+$ftp->login('anonymous')      or die $ftp->message;
+$ftp->cwd(DIR)                or die $ftp->message;
+$ftp->get(FILE)               or die $ftp->message;
+$ftp->quit;
+
+warn "File retrieved successfully.\n";
+```
+## ftp获取指定路径
+可以指定获取文件或是指定目录（会递归）
+```
+use Net::FTP;
+use File::Path;
+use Getopt::Long;
+
+use constant USAGEMSG => <<USAGE;
+Usage: ftp_mirror.pl [options] host:/path/to/directory
+Options: 
+        --user  <user>  Login name
+        --pass  <pass>  Password
+        --hash          Progress reports
+        --verbose       Verbose messages
+USAGE
+
+my ($USERNAME,$PASS,$VERBOSE,$HASH);
+die USAGEMSG unless GetOptions('user=s'  => \$USERNAME,
+                               'pass=s'  => \$PASS,
+                               'hash'    => \$HASH,	# 传输过程打印hash标记
+                               'verbose' => \$VERBOSE);	# 获取详细状态报告
+die USAGEMSG unless my ($HOST,$PATH) = $ARGV[0]=~/(.+):(.+)/; # 解析参数
+
+my $ftp = Net::FTP->new($HOST) or die "Can't connect: $@\n";
+$ftp->login($USERNAME,$PASS)   or die "Can't login: ",$ftp->message; # 使用指定的参数登录，否则使用anonymous
+$ftp->binary;	# 设置二进制模式，适用于传输二进制文件，与其对应的还有ascii
+$ftp->hash(1) if $HASH;	# 来自命令行参数，用于传输过程是否打印hash标记
+
+do_mirror($PATH);
+
+$ftp->quit;
+exit 0;
+
+# top-level entry point for mirroring.
+sub do_mirror {
+  my $path = shift;
+
+  return unless my $type = find_type($path); # 判断参数是目录还是文件
+
+  my ($prefix,$leaf) = $path =~ m!^(.*?)([^/]+)/?$!; # 路径拆分，分为最末层与其余
+#   print "left: $leaf\n";
+  $ftp->cwd($prefix) if $prefix; # 进入指定路径的上一层
+  # 根据类型进行备份，下面备份时候直接使用left即可，当前路径已在最末层位置
+  get_file($leaf)  if $type eq '-';  # ordinary file
+  get_dir($leaf)   if $type eq 'd';  # directory
+
+  warn "Don't know what to do with a file of type $type. Skipping.";
+}
+
+# subroutine to determine whether a path is a directory or a file
+# 判断类型是文件还是目录，使用cwd方法检测是否可以进入来判断是否为目录
+sub find_type {
+  my $path = shift;
+  my $pwd = $ftp->pwd; # 备份ftp当前所在路径
+  my $type = '-';  # assume plain file 用-代表文件
+  if ($ftp->cwd($path)) {	# 能进入此path则为目录
+    $ftp->cwd($pwd);	# 这里又返回了上面的备份
+    $type = 'd';	# 用d代表目录
+  }
+  return $type;
+}
+
+
+# mirror a file
+sub get_file {
+  my ($path,$mode) = @_;	# 如仅备份单文件则mode为空，path为文件名，当前已在最末层目录中
+  my $rtime = $ftp->mdtm($path); 	# 获取文件修改时间
+  my $rsize = $ftp->size($path);	# 获取文件size
+#   my $msg=sprintf("path:%s, file:%s, time:%s, size:%s\n", $ftp->pwd, $path, $rtime, $rsize);
+	# print $msg;
+  # dir方法如参数是文件则返回此文件的信息，是路径则返回所有文件的各自信息，返回的是arr
+  my @fileinfo = $ftp->dir($path);
+  # print $fileinfo[0];
+  $mode=(parse_listing($fileinfo[0]))[2] unless defined $mode; # 如有mode则赋值
+	# print $mode,"\n";
+#   $mode = (parse_listing($ftp->dir($path)))[2] unless defined $mode; # 未定义mode则使用dir获取目录列表
+
+  my ($lsize,$ltime) = stat($path) ? (stat(_))[7,9] : (0,0); # 获取文件信息成功则去第七第九下标的值（代表size与修改时间），否则0，stat(_)代表？前面的计算结果（详见stat）
+  if ( defined($rtime) and defined($rsize)  # 如果有值，且本地数值不比远程老，则不用重新备份并返回
+       and ($ltime >= $rtime) 
+       and ($lsize == $rsize) ) {
+    warn "Getting file $path: not newer than local copy.\n" if $VERBOSE;
+    return;
+  }
+
+  warn "Getting file $path\n" if $VERBOSE;
+  $ftp->get($path) or (warn $ftp->message,"\n" and return); # 否则获取文件，chmod文件之
+  chmod $mode,$path if $mode;
+}
+
+# mirror a directory, recursively 递归的过去文件夹内所有内容
+sub get_dir {
+  my ($path,$mode) = @_;
+  my $localpath = $path; # path为当前的相对路径
+  -d $localpath or mkpath $localpath or die "mkpath failed: $!"; # 如果本地没有文件夹则创建（此处支持多层目录），如果创建失败则die
+  chdir $localpath                   or die "can't chdir to $localpath: $!"; # 进入本地文件夹
+  chmod $mode,'.' if $mode; # 如果有mode这chmod之
+
+  my $cwd = $ftp->pwd                or die "can't pwd: ",$ftp->message;	# 记录当前ftp目录
+  $ftp->cwd($path)                   or die "can't cwd: ",$ftp->message;	# 进入要获取的ftp指定路径
+
+  warn "Getting directory $path/\n" if $VERBOSE;
+
+  foreach ($ftp->dir) {	# 获取当前fpt目录列表
+    next unless my ($type,$name,$mode) = parse_listing($_);	# 获取每一行的3个属性
+    next if $name =~ /^(\.|\.\.)$/;  # skip . and .. 跳过.和..
+    get_dir ($name,$mode)    if $type eq 'd';	# 递归处理目录
+    get_file($name,$mode)    if $type eq '-'; 	# 处理单文件
+    make_link($name)         if $type eq 'l';	# 处理链接
+  }
+
+  $ftp->cwd($cwd)     or die "can't cwd: ",$ftp->message;	# 恢复ftp的当前路径
+  chdir '..';	# 再向上一层
+}
+
+
+# Attempt to mirror a link.  Only works on relative targets. 仅对已经下载的目录内的文件进行链接
+sub make_link {
+  my $entry = shift;
+  my ($link,$target) = split /\s+->\s+/,$entry;
+  return if $target =~ m!^/!;
+  warn "Symlinking $link -> $target\n" if $VERBOSE;
+  return symlink $target,$link;
+}
+
+# parse directory listings 
+# -rw-r--r--   1 root     root          312 Aug  1  1994 welcome.msg
+# 从一行的文件信息里匹配出3个数据(使用小括号的具名捕获)
+sub parse_listing {
+  my $listing = shift;
+  return unless my ($type,$mode,$name) =
+    $listing =~ /^([a-z-])([a-z-]{9})  # -rw-r--r-- 判断第一个字符是-则是文件,d则是目录,同linux
+                 \s+\d*                # 1
+                 (?:\s+\w+){2}         # root root
+                 \s+\d+                # 312
+                 \s+\w+\s+\d+\s+[\d:]+ # Aug 1 1994
+                 \s+(.+)               # welcome.msg
+                 $/x;  
+  
+  return ($type,$name,filemode($mode));
+}
+
+# turn symbolic modes into octal 将rwxr之类的转为数字形式
+sub filemode {
+  my $symbolic = shift;
+  my (@modes) = $symbolic =~ /(...)(...)(...)$/g;
+  my $result;
+  my $multiplier = 1;
+  while (my $mode = pop @modes) {
+    my $m = 0;
+    $m += 1 if $mode =~ /[xsS]/;
+    $m += 2 if $mode =~ /w/;
+    $m += 4 if $mode =~ /r/;
+    $result += $m * $multiplier if $m > 0;
+    $multiplier *= 8;
+  }
+  $result;
+}
+
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/0.pl" --verbose ftp.cesca.es:/centos/build/
+Getting directory build/
+Symlinking HEADER.html -> ../HEADER.html
+Symlinking HEADER.images -> ../HEADER.images
+Getting file build.sh
+.
+.
+.
 ```
