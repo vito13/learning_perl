@@ -653,6 +653,9 @@ while(my ($k, $v) = each %ENV){
   say "key: $k, v: $v";
 }
 ```
+## 休眠 sleep
+还有更高精度的Time::HiRes可以使用
+
 # 引用
 * 引用类似C语言的指针，是指向一个内存空间的地址
 * 引用是一个标量类型，可以指向变量、数组、哈希甚至子程序，可以应用在程序的任何地方。  
@@ -1031,7 +1034,7 @@ say $fib->(12);
 
 ## if、unless、？：
 ```
-COND可以是任意一个表示布尔值的值或表达式，它是一个标量上下文。Perl中任何一个需要进行条件判断的地方都是标量上下文。
+COND可以是任意一个表示布尔值的值或表达式（即可以使用&&进行多条件组合），它是一个标量上下文。Perl中任何一个需要进行条件判断的地方都是标量上下文。
 
 if(COND){  # 或者 unless(COND)
   command
@@ -1186,7 +1189,7 @@ foreach $a (@list){
     print "a 的值为: $a\n";
 }
 
-
+# 单行式，使用$_代表循环变量，然后进行say之
 say $_ foreach (qw\a b c\);
 [huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
 a
@@ -3665,70 +3668,6 @@ In AUTOLOAD(filling, apple) for bake_pie!
 In AUTOLOAD(filling, apple) for main::bake_pie!
 mmm
 ```
-# 信号处理
-## linux中的信号signal
-* 信号就是编程里俗称的中断，它使监视与控制其他进程变为有可能。
-* 用来通知进程发生了异步事件。进程之间可以互相通过系统调用kill发送软中断信号
-* 发送进程没有任何办法获取任何形式的返回，它只能知道该信号已经合法发送出去了。发送者也接收不到任何接收进程对该信号做的处理的信息
-* 内核也可以因为内部事件而给进程发送信号，通知进程发生了某个事件。
-* 信号只是用来通知某进程发生了什么事件，并不给该进程传递任何数据。
-* 要想查看这些信号和编码的对应关系，可使用命令：kill -l
-* 信号处理回调中应尽量少逻辑，如仅改变一个全局变量之类操作，避免io，内存操作
-* 信号处理逻辑有可能也无法完全做到可移植，不同系统有可能未实现
-* 全部信号看这里 https://blog.csdn.net/tennysonsky/article/details/46010505	也可参考perl网络编程p40
-## Perl信号的处理
-* Perl 提供了%SIG 这个特殊的默认HASH，包含指向用户定义信号句柄的引用
-* 使用’$SIG{信号名}’截取信号,在perl程序中出现这个信号时,执行对应的回调
-* 可以设置为DEFAULT为恢复默认处理，以及IGNORE为忽略
-```
-my$i=1;
-while(1){
-    $i=$i+1;
-    print$i."\n";
-}
-
-sub yoursub{
-    print" exit ... \n";
-    exit 0;
-}
-
-BEGIN{
-    $SIG{TERM}=$SIG{INT}=\&yoursub;
-}  
-
-启动程序，BEGIN中注册回调
-（此处使用取地址赋值，也可以使用匿名方式如
-$SIG{INT} = sub { ... };）
-ctrl+c会导致INT信号，随即触发回调
-```
-注册die的回调
-```
-BEGIN{
-    $SIG{__DIE__}=$SIG{__WARN__}=\&handler_fatal;
-}  
-
-sub handler_fatal {
-    print"Content-type: text/html\n";
-    print"@_&", "\n";
-}
-
-die ".x.x.x.";
-
-[huawei@n148 perl]$ perl "/home/huawei/playground/perl/2.pl"
-Content-type: text/html
-.x.x.x. at /home/huawei/playground/perl/2.pl line 14.
-&
-.x.x.x. at /home/huawei/playground/perl/2.pl line 14.
-```
-## 发送信号kill
-kill('signal', @Processes))给一组进程发送信号。signal是发送的数字信号
-* 超级用户可以给任何进程发信号
-* 普通用户只能同级别进程发信号
-* 信号值0，则返回能够被发送的进程数量
-* 信号值负数则是杀掉此号绝对值所属组的所有进程  
-* kill('INT', $$)是自杀
-
-kill('KILL', 进程号1, 进程号2...);
 # 正则
 默认搜索对象是$_，Perl的正则表达式的三种形式：
 * 匹配：m//
@@ -6325,6 +6264,72 @@ ARGV 一个特殊的文件句柄，用于遍历 @ ARGV 中出现的所有文件�
 @INC 在导入模块时需要搜索的目录列表
 $-[0]和$+[0] 代表当前匹配的正则表达式在被匹配的字符串中的起始和终止的位置 
 ```
+# 信号处理
+概念 http://blog.chinaunix.net/uid-30497107-id-5757738.html  
+看完上面的内容，基本上linux的信号概念已经完备，下面的描述有可能不准确或仅针对perl
+## linux中的信号signal
+* 信号就是编程里俗称的中断，它使监视与控制其他进程变为有可能。
+* 用来通知进程发生了异步事件。进程之间可以互相通过系统调用kill发送软中断信号
+* 发送进程没有任何办法获取任何形式的返回，它只能知道该信号已经合法发送出去了。发送者也接收不到任何接收进程对该信号做的处理的信息
+* 内核也可以因为内部事件而给进程发送信号，通知进程发生了某个事件。
+* 信号只是用来通知某进程发生了什么事件，并不给该进程传递任何数据。
+* 要想查看这些信号和编码的对应关系，可使用命令：kill -l
+* 信号处理回调中应尽量少逻辑，如仅改变一个全局变量之类操作，避免io，内存操作
+* 信号处理逻辑有可能也无法完全做到可移植，不同系统有可能未实现
+* 全部信号看这里 https://blog.csdn.net/tennysonsky/article/details/46010505	也可参考perl网络编程p40
+## Perl信号的处理
+* Perl 提供了%SIG 这个特殊的默认HASH，包含指向用户定义信号句柄的引用
+* 使用’$SIG{信号名}’截取信号,在perl程序中出现这个信号时,执行对应的回调
+* 可以设置为DEFAULT为恢复默认处理，以及IGNORE为忽略
+```
+my$i=1;
+while(1){
+    $i=$i+1;
+    print$i."\n";
+}
+
+sub yoursub{
+    print" exit ... \n";
+    exit 0;
+}
+
+BEGIN{
+    $SIG{TERM}=$SIG{INT}=\&yoursub;
+}  
+
+启动程序，BEGIN中注册回调
+（此处使用取地址赋值，也可以使用匿名方式如
+$SIG{INT} = sub { ... };）
+ctrl+c会导致INT信号，随即触发回调
+```
+注册die的回调
+```
+BEGIN{
+    $SIG{__DIE__}=$SIG{__WARN__}=\&handler_fatal;
+}  
+
+sub handler_fatal {
+    print"Content-type: text/html\n";
+    print"@_&", "\n";
+}
+
+die ".x.x.x.";
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/2.pl"
+Content-type: text/html
+.x.x.x. at /home/huawei/playground/perl/2.pl line 14.
+&
+.x.x.x. at /home/huawei/playground/perl/2.pl line 14.
+```
+## 发送信号 kill
+kill('signal', @Processes))给一组进程发送信号。signal是发送的数字信号
+* 超级用户可以给任何进程发信号
+* 普通用户只能同级别进程发信号
+* "kill(0, $pid) 是判断进程是否正在运行，t则返回1，f则是0
+* 信号值负数则是杀掉此号绝对值所属组的所有进程  
+* kill('INT', $$)是自杀
+
+kill('KILL', 进程号1, 进程号2...);
 
 # 进程管理
 * 特殊变量 $$ 或 $PROCESS_ID 来获取进程 ID。
@@ -6440,6 +6445,36 @@ if(!defined($pid = fork())) {
 Thu Dec  2 17:37:09 CST 2021
 完成的进程ID: -1
 ```
+## 守护进程与setsid
+概念：http://blog.chinaunix.net/uid-30497107-id-5757733.html  
+
+
+通常，一个会话开始于用户登录，而终止于用户退出，在此期间该用户运行的所有进程都属于这个会话期。在创建守护进程的时候，子进程与父进程同属于相同的会话组与进程组。
+
+守护进程的特点
+* 在后台运行
+* 脱离控制终端，登录会话和进程组
+* 禁止进程重新打开控制终端
+* 关闭打开的文件描述符
+* 改变当前工作目录
+* 重设文件创建掩模
+* 处理SIGCHLD信号
+
+
+setsid函数概念与作用  
+https://blog.csdn.net/akunshouyoudou/article/details/50828826  
+* 让进程摆脱原会话的控制
+* 让进程摆脱原进程组的控制
+* 让进程摆脱原控制终端的控制
+ 
+创建守护进程的步骤
+* 创建父进程，并且让其推出
+* 调用 setsid（）函数
+* 改变当前的目录为根目录 chdir（"/"）
+* 重设文件权限掩码 umask(0);
+* 关闭文件描述符 .常用的方式为 for(i = 0 ; i < MAXFILE;  i ++){close(i);}
+
+案例见 守护进程版聊天服务器
 ## CHLD信号
 CHLD的作用是子进程结束时候会自动发送此信号给父进程，父进程对此信号进行捕获处理即可  
 案例来自perl网络编程，作用是与ftp服务器进行交互，
@@ -6498,10 +6533,50 @@ quit	这行手敲
 221 Goodbye.
 Connection closed by foreign host.
 ```
+## wait、waitpid
+* 这2个函数可以理解为收尸的作用
+* 如果子进程在父进程之前over则可以在父进程中使用wait或waitpid获取子进程的终止状态码
+* 如果子进程一直未被wait或waitpid则父进程在资源耗尽之后最终会fork失败
+* 子进程终止或挂起都会发CHLD信号给父进程，此时在父进程的回调中wait最合适
+* wait会阻塞直到子进程终止，并返回pid，$?是状态码，0则正常其它异常
+* waitpid则可以通过参数WNOHANG设置为非阻塞
+
+```
+使用类似这样的代码逻辑，详细案例见聊天机器人server
+
+use POSIX 'WNOHANG';
+$SIG{CHLD} = sub 
+{
+	while ((my $kid= waitpid(-1,WNOHANG)) > 0 ) 
+	{ 
+		warn "pid: $kid\n";
+	} 
+};
+```
 ## IPC::System::Simple
 system、systemx、capture、capturex
 ## 通过文件句柄执行外部进程
+# 多线程
+本代码基于perl网络编程，书内容较老，也许现今已不适用，仅参考。  
+## 创建 new与join
+很傻的操作，仅演示了api的作用，如果把sleep去掉，则是线程1循环完毕才会循环线程2...
+```
+use strict;
+use Thread;
+my $th1=Thread->new(\&hello, "im t1", 50);
+my $th2=Thread->new(\&hello, "im t2", 50);
+$_->join foreach($th1, $th2);
 
+sub hello{
+	my ($msg, $loop) = @_;
+	for (1..$loop) 
+	{
+		print $msg, ":$_\n";
+		sleep(1);
+	}
+}
+```
+## 锁 lock
 # 目录操作
 ## 获取当前路径
 ```
@@ -9355,6 +9430,7 @@ https://perlbrew.pl/Perlbrew-%E4%B8%AD%E6%96%87%E7%B0%A1%E4%BB%8B.html
 [huawei@n148 bin]$ perlbrew install 5.24.0
 
 ```
+
 # 网络编程
 ## 基于berkeley的tcp简单echo实现
 * 伯克利风格c接口，虽然精简了一点，但简直与c的代码一样。。。
@@ -9633,3 +9709,270 @@ Getting file build.sh
 .
 .
 ```
+## 安装telnet
+```
+centos安装服务器
+https://blog.51cto.com/wangfeiyu/2173268
+测试使用本地登录成功了，但使用win登录到linux就失败了，总是端口23连接失败，没有再研究。。。
+
+windows安装客户端
+https://jingyan.baidu.com/article/02027811592cbf1bcc9ce58a.html
+```
+## 简单telnet登录测试
+运行后会列出ps结果
+```
+use strict;
+use Net::Telnet;
+
+warn "Change the constants to match a machine you have login access to.\n";
+
+use constant HOST => '127.0.0.1';
+use constant USER => 'huawei';
+use constant PASS => '111111';
+
+my $telnet = Net::Telnet->new(HOST);
+$telnet->login(USER,PASS);
+my @lines = $telnet->cmd('ps -ef');
+print @lines;
+```
+## 更加复杂的telnet案例
+perl网络编程第六章中的change_passwd.pl（明文密码）与change_passwd_ssh.pl（ssh方式）分别演示了使用telnet方式修改用户密码，未进行测试
+## 发邮件
+perl网络编程第七章第八章有介绍，未做测试。且貌似有更新的库可以替代书上的案例
+
+## 解析web网页
+perl网络编程第十章，未做测试。
+## 简单聊天机器人
+使用bye退出聊天
+```
+use Modern::Perl;
+use Chatbot::Eliza;
+$| = 1;
+my $bot = Chatbot::Eliza->new;
+$bot->command_interface();
+```
+## 多进程版聊天服务器
+```
+# file: remoteps1.pl
+
+use strict;
+use Chatbot::Eliza;
+use IO::Socket;
+use POSIX 'WNOHANG';
+
+use constant PORT => 12000;
+my $quit = 0; # 用于退出程序的循环变量
+
+# signal handler for child die events 子进程中止的回调，配合下面INT的回调为fork处理的最佳组合
+$SIG{CHLD} = sub { while ( waitpid(-1,WNOHANG)>0 ) { } };
+# signal handler for interrupt key and TERM signal
+$SIG{INT} = sub { $quit++ };
+
+my $listen_socket = IO::Socket::INET->new(LocalPort => PORT,
+                                          Listen    => 20,
+                                          Proto     => 'tcp',
+                                          Reuse     => 1,
+                                          Timeout   => 60*60,
+                                         );
+die "Can't create a listening socket: $@" unless $listen_socket;
+warn "Server ready.  Waiting for connections...\n";   
+
+while (!$quit) {
+
+  next unless my $connection = $listen_socket->accept;
+
+  defined (my $child = fork()) or die "Can't fork: $!";
+  if ($child == 0) {
+    $listen_socket->close;	# 子进程则无需再监听，交互结束可以直接结束进程
+    interact($connection);
+    exit 0;
+  }
+
+  $connection->close; # 父进程则关闭此连接的拷贝（可以节省资源）
+}
+
+sub interact {
+  my $sock = shift;
+  STDIN->fdopen($sock,"<")  or die "Can't reopen STDIN: $!"; # 使用STD开启socket来进行交互
+  STDOUT->fdopen($sock,">") or die "Can't reopen STDOUT: $!";
+  STDERR->fdopen($sock,">") or die "Can't reopen STDERR: $!";
+  $|=1;
+  my $bot = Chatbot::Eliza->new;
+  $bot->command_interface();
+}
+```
+启动server后，使用[huawei@n148 ~]$ telnet localhost 12000 开启连接，bye退出交互
+## 守护进程版聊天服务器
+deamon版本仅可以用于linux进程模型，windows参考srvany.exe将perl脚本设为后台服务进行实现。  
+本案例的代码逻辑是deamon固有套路，如使用则仿制即可。  
+运行本服务器代码后，依然使用[huawei@n148 ~]$ telnet localhost 12000 开启连接，bye退出交互
+```
+use strict;
+use Chatbot::Eliza;
+use IO::Socket;
+use IO::File;
+use POSIX qw(WNOHANG setsid);
+
+use constant PORT      => 12000;
+use constant PID_FILE  => '/var/tmp/eliza.pid'; # pid文件存放路径
+my $quit = 0;
+
+# signal handler for child die events 注册这2个回调是为了END能删除pid文件
+$SIG{CHLD} = sub { while ( waitpid(-1,WNOHANG)>0 ) { } };
+$SIG{TERM} = $SIG{INT} = sub { $quit++ };
+
+my $fh = open_pid_file(PID_FILE); # 创建pid文件
+my $listen_socket = IO::Socket::INET->new(LocalPort => shift || PORT,
+                                          Listen    => 20,
+                                          Proto     => 'tcp',
+                                          Reuse     => 1,
+                                          Timeout   => 60*60,
+                                         );
+die "Can't create a listening socket: $@" unless $listen_socket;
+
+warn "$0 starting...\n";
+my $pid = become_daemon();	# 得到deamon的pid
+print $fh $pid;	# 写入pid，关闭句柄
+close $fh;
+
+while (!$quit) {
+
+  next unless my $connection = $listen_socket->accept;
+
+  die "Can't fork: $!" unless defined (my $child = fork());
+  if ($child == 0) {
+    $listen_socket->close;
+    interact($connection);
+    exit 0;
+  }
+
+  $connection->close;
+}
+
+sub interact {
+  my $sock = shift;
+  STDIN->fdopen($sock,"<")  or die "Can't reopen STDIN: $!";
+  STDOUT->fdopen($sock,">") or die "Can't reopen STDOUT: $!";
+  STDERR->fdopen($sock,">") or die "Can't reopen STDERR: $!";
+  $| = 1;
+  my $bot = Chatbot::Eliza->new;
+  $bot->command_interface;
+}
+
+sub become_daemon {
+  die "Can't fork" unless defined (my $child = fork);
+  exit 0 if $child;    # 父进程结束仅保留子进程
+  setsid();     # 该子进程成为当前会话组的leader
+  open(STDIN, "</dev/null");	# 关闭输入
+  open(STDOUT,">/dev/null");	# 关闭输出
+  open(STDERR,">&STDOUT");	# 将err输出到stdout
+  chdir '/';           # change working directory到根目录
+  umask(0);            # forget file mode creation mask，消除继承的文件mask
+  $ENV{PATH} = '/bin:/sbin:/usr/bin:/usr/sbin'; # 设置PATH
+  return $$;	# 返回子进程的pid
+}
+
+sub open_pid_file { # 作用是写入pid到磁盘便于别人给其发送信号
+  my $file = shift;
+  if (-e $file) {  # oops.  pid file already exists
+    my $fh = IO::File->new($file) || return;	# 打开，获取pid（此文件内容仅一个数字）
+    my $pid = <$fh>;
+    die "Server already running with PID $pid" if kill(0, $pid); # kill 0返回1则deamon仍在运行然后die，否则返回0
+    warn "Removing PID file for defunct server process $pid.\n";	# 上面返回0则说明未清理pid文件进程就挂了
+    die "Can't unlink PID file $file" unless -w $file && unlink $file;	# 检测pid文件可写并清除，失败则die
+  }
+  return IO::File->new($file,O_WRONLY|O_CREAT|O_EXCL,0644)	# 创建pid文件并返回句柄
+    or die "Can't create $file: $!\n";
+}
+
+sub Chatbot::Eliza::_testquit { 
+  my ($self,$string) = @_; 
+  return 1 unless defined $string;  # test for EOF 
+  foreach (@{$self->{quit}}) { return 1 if $string =~ /\b$_\b/i };
+} 
+
+END { unlink PID_FILE if $$ == $pid; }	# 如当前是deamon（非其它子进程）则退出前删除pid文件
+```
+## 多线程版本聊天服务器
+本代码基于perl网络编程，书内容较老，也许现今已不适用，仅参考。  
+对聊天机器人类进行了继承并重写了入口函数
+```
+package Chatbot::Eliza::Server;
+use Chatbot::Eliza;
+# file: Chatbot/Eliza/Server.pm
+# Figure 11.2: The Chatbot::Eliza::Server class
+
+@ISA = 'Chatbot::Eliza';	# 基础子此类
+
+sub command_interface {	# 重新定义此方法
+  my $self = shift;	# 类似this，非外界调用时候的参数
+  my $in   = shift || \*STDIN;	# in与out是外面传进来的参数，此处因为是同一进程所以不能使用相同的STDOUT和STDIN，需要分开
+  my $out  = shift || \*STDOUT;	# 即每个线程都有各自的，如没有设置则还使用STD的
+  my ($user_input, $previous_user_input, $reply);
+
+  $self->botprompt($self->name . ":\t");  # Set Eliza's prompt 这里以下的逻辑代码是基类的原始实现
+  $self->userprompt("you:\t");           # Set user's prompt	原作者照搬过来的
+
+  # Print an initial greeting
+  print $out $self->botprompt,
+             $self->{initial}->[ int rand scalar @{ $self->{initial} } ],
+             "\n";
+
+  while (1) {
+    print $out $self->userprompt;
+    $previous_user_input = $user_input;
+    chomp( $user_input = <$in> ); 
+    last unless $user_input;
+
+    # User wants to quit
+    if ($self->_testquit($user_input) ) {
+      $reply = $self->{final}->[ int rand scalar @{ $self->{final} } ];
+      print $out $self->botprompt,$reply,"\n";
+      last;
+    } 
+
+    # Invoke the transform method to generate a reply.
+    $reply = $self->transform( $user_input );
+
+    # Print the actual reply
+    print $out $self->botprompt,$reply,"\n";
+  }
+}
+
+1;
+```
+下面是server逻辑
+```
+use strict;
+use IO::Socket;
+use Thread;
+use Chatbot::Eliza::Server;
+
+use constant PORT => 12000;
+my $listen_socket = IO::Socket::INET->new(LocalPort => PORT,
+                                          Listen    => 20,
+                                          Proto     => 'tcp',
+                                          Reuse     => 1);
+die $@ unless $listen_socket;
+
+warn "Listening for connections...\n";
+
+while (my $connection = $listen_socket->accept) {
+  Thread->new(\&interact,$connection);	# 有连接进来就创建线程
+}
+
+sub interact {
+  my $handle = shift;
+  Thread->self->detach;	# 脱离主线程，将sock传入主循环
+  Chatbot::Eliza::Server->new->command_interface($handle,$handle);
+  $handle->close();	# 线程结束关闭sock
+}
+
+
+这2个文件的目录关系
+├── server.pl
+├── Chatbot
+    └── Eliza
+        └── Server.pm
+```
+
