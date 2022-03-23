@@ -194,7 +194,8 @@ $n = "   1234";         # 有前缀空白的字符串数值
 $n = "  123a";          # 可以当数值123使用，但warnings时会警告
 ```
 Perl可以将字符串格式的数值当作数值来使用
-## 常量
+## 常量，预定义宏
+定义常量
 ```
 use constant COUNT => 100;
 print COUNT, "\n";
@@ -211,6 +212,11 @@ use constant {
 };
 print AAA;
 print SCORE_PASS;
+```
+实现预定义宏的效果
+```
+use constant MYDEBUG => 1;
+warn "os: $Config{osname}, warn file: $fname", "\n" if MYDEBUG;
 ```
 ## 判断数据类型
 ```
@@ -383,6 +389,32 @@ has blue
 00000000
 is write
 ```
+下面的案例演示了不同等级的log
+```
+use strict;
+use constant WEB => 0x0001; # 1
+use constant SQL => 0x0010; # 2
+use constant REG => 0x0100; # 4
+use constant DEBUG => WEB | REG;
+
+sub dbgprt
+{
+	my $type = shift;
+	warn "***DEBUG***\t", shift if DEBUG & $type;
+}
+
+dbgprt(WEB, "WEB");
+dbgprt(SQL, "SQL");
+dbgprt(REG, "REG");
+dbgprt(DEBUG, "DEBUG");
+
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/0.pl"
+***DEBUG***     WEB at /home/huawei/playground/perl/0.pl line 11.
+***DEBUG***     REG at /home/huawei/playground/perl/0.pl line 11.
+***DEBUG***     DEBUG at /home/huawei/playground/perl/0.pl line 11.
+```
+
 ## 除法保留小数位
 ```
 my $totle1=sprintf("%.2f", $a/$b*100);
@@ -655,6 +687,15 @@ while(my ($k, $v) = each %ENV){
 ```
 ## 休眠 sleep
 还有更高精度的Time::HiRes可以使用
+```
+use strict;
+use warnings;
+use Time::HiRes qw(usleep nanosleep);
+# 1 millisecond == 1000 microseconds
+usleep(1000);
+# 1 microsecond == 1000 nanoseconds
+nanosleep(1000000);
+```
 
 # 引用
 * 引用类似C语言的指针，是指向一个内存空间的地址
@@ -1480,6 +1521,7 @@ do {
 如果在default之前的when语句使用了continue，Per就会继续执行default语句
 ```
 检测单个
+use 5.010; # 重要 这句没有可能会编译失败
 given( $ARGV[0] ) {
   when( $_ ~~ /fred/i ) { say 'Name has fred in it'; continue }
   when( $_ ~~ /^Fred/ ) { say 'Name starts with Fred'; continue }
@@ -1489,6 +1531,7 @@ given( $ARGV[0] ) {
 
 
 多个项目的when匹配
+use 5.010; # 重要 这句没有可能会编译失败
 my @names = ("google", "runoob", "taobao", "fred");
 foreach ( @names ) {
   say("\nProcessing $_");
@@ -8230,7 +8273,8 @@ end
 ```
 ## 一行式
 https://github.com/vinian/perl1line.txt/blob/master/perl1line-ch.txt
-
+## 命令行参数
+use Getopt::Std; 参考perl调试技术5.4
 # 智能匹配 ~~
 对两个操作数进行比较，并在互相匹配时返回真值。定义的模糊恰好反映了此操作符的智能程度，比较操作由操作数两者共同决定。之前的given（Given/When）进行的就是隐式智能匹配。
 
@@ -9385,7 +9429,8 @@ Devel::Cover模块可用于对函数、语句、分支、条件各自进行统�
 * Test::Deep用来测试嵌套数据。
 * Devel::Cover会分析测试套件的执行情况，报告你的代码数量，报告覆盖率。
 * Test::Most集成了几个有用的测试模块。
-
+# 调试
+使用perl -dw xxx.pl进行启动，效果类似gdb
 # 升级perl
 ```
 1：查询perl的真实安装路径
