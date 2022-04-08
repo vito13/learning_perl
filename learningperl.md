@@ -685,17 +685,65 @@ while(my ($k, $v) = each %ENV){
   say "key: $k, v: $v";
 }
 ```
-## 休眠 sleep
-还有更高精度的Time::HiRes可以使用
+## 静态变量 state
+state操作符功能类似于C里面的static修饰符，state关键字将局部变量变得持久。state也是词法变量，所以只在定义该变量的词法作用域中有效
+* state仅能创建闭合作用域为子程序内部的变量
+* state是从Perl 5.9.4开始引入的，所以使用前必须加上 use
+* state可以声明标量、数组、哈希。但在声明数组和哈希时，不能对其初始化（至少Perl 5.14不支持）
+```
+use feature 'state';
+ 
+sub PrintCount{
+   state $count = 0; # 初始化变量
+ 
+   print "counter 值为：$count\n";
+   $count++;
+}
+ 
+for (1..5){
+   PrintCount();
+}
+
+以上程序执行输出结果为：
+
+counter 值为：0
+counter 值为：1
+counter 值为：2
+counter 值为：3
+counter 值为：4
+```
+
 ```
 use strict;
 use warnings;
-use Time::HiRes qw(usleep nanosleep);
-# 1 millisecond == 1000 microseconds
-usleep(1000);
-# 1 microsecond == 1000 nanoseconds
-nanosleep(1000000);
+use feature ":5.10";
+
+main(@ARGV);
+
+sub main
+{
+    my $i = 5;
+    increment($i);
+    increment($i);
+    increment($i);
+    increment($i);
+}
+
+sub increment{
+    state $n = shift;
+    say ++$n;
+}
+
+sub error
+{
+    my $e = shift || 'unkown error';
+    my $me = ( split(/[\\\/]/, $0 ) )[-1];
+    print("$me: $e\n");
+    exit 0;
+}
 ```
+
+
 
 # 引用
 * 引用类似C语言的指针，是指向一个内存空间的地址
@@ -1071,7 +1119,7 @@ sub gen_fib
 my $fib = gen_fib();
 say $fib->(12);
 ```
-# 流程控制
+# 流程控制与智能匹配
 
 ## if、unless、？：
 ```
@@ -1542,7 +1590,144 @@ foreach ( @names ) {
   default { say "I don't see a Fred" }
 }
 ```
+```
+use strict;
+use warnings;
+use feature ":5.10";
+
+main(@ARGV);
+
+sub main
+{
+    my $s='jimi hendrix';#5
+    given($s){
+        when(undef){say'$s is undefined'}
+        when('jimi'){say'$s is musician'}
+        when(/jimi/){say'$s maybe a muscian'}
+        when([1,3,5,7,9]){say'$s is odd number'}
+        default{say '$s is something else!'}
+    }
+}
+
+sub error
+{
+    my $e = shift || 'unkown error';
+    my $me = ( split(/[\\\/]/, $0 ) )[-1];
+    print("$me: $e\n");
+    exit 0;
+}
+```
+## 智能匹配 ~~
+对两个操作数进行比较，并在互相匹配时返回真值。定义的模糊恰好反映了此操作符的智能程度，比较操作由操作数两者共同决定。之前的given（Given/When）进行的就是隐式智能匹配。
+
+
+检测某个元素是否在数组中的代码，使用智能匹配
+```
+my $x=2;
+my @array;
+if(@array~~$x)
+{
+print "$x is in the array";
+}
+else
+{
+print "$x is in the array";
+}
+```
+不使用的样子
+```
+my $x=2;
+my @array=(1,2,3);
+my $flag=0;
+for (@array)
+{
+if($x==$_)
+{
+$flag=1;
+}
+}
+
+if($flag == 1){
+print "$x is in the array";
+}
+else
+{
+print "$x is not in the array";
+}
+```
+智能匹配操作的处理方式
+```
+$a      $b        Type of Match Implied    Matching Cod
+======  =====     =====================    =============
+Hash    Hash      hash keys identical      [sort keys %$a]~~[sort keys %$b]
+Hash    Array     hash slice existence     grep {exists $a->{$_}} @$b
+Hash    Regex     hash key grep            grep /$b/, keys %$a
+Hash    Any       hash entry existence     exists $a->{$b}
+Array   Array     arrays are identical[*]
+Array   Regex     array grep               grep /$b/, @$a
+Array   Num       array contains number    grep $_ == $b, @$a
+Array   Any       array contains string    grep $_ eq $b, @$a
+Any     undef     undefined                !defined $a
+Any     Regex     pattern match            $a =~ /$b/
+Code()  Code()    results are equal        $a->() eq $b->()
+Any     Code()    simple closure truth     $b->() # ignoring $a
+Num     numish[!] numeric equality         $a == $b
+Any     Str       string equality          $a eq $b
+Any     Num       numeric equality         $a == $b
+Any     Any       string equality          $a eq $b
+
+~~两边的操作数可以互换，不影响结果
+
+例子				匹配方式
+%a ~~ %b			哈希的键是否一致
+%a ~~ @b			至少 %a 中的一个键在列表@b中
+%a ~~ /Fred/		至少一个键匹配给定的模式
+%a ~~ 'Fred'		哈希中某一指定键$a{Fred}是否存在 $a{Fred}
+@a ~~ @b			数组是否相同
+@a ~~ /Fred/		有一个元素匹配给定的模式
+@a ~~ 123			至少有一个元素转化为数字后是123
+@a ~~ 'Fred'		至少有一个元素转化为字符串后是'Fred'
+$name ~~ undef		$name确实尚未定义
+$name ~~ /Fred/		模式匹配
+123 ~~ '123.0'		数字和字符串是否相等
+'Fred' ~~ 'Fred'	字符串是否相同
+123 ~~ 456			数字是否相等
+
+```
+
+
+检测哈希是否包含k
+```
+my %data = ('google'=>'google.com', 'runoob'=>'runoob.com', 'taobao'=>'taobao.com');
+say 'find' if %data ~~ /oo/;
+[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
+find
+```
+
 # 常用函数
+## main函数
+貌似需要5.10特性
+```
+use strict;
+use warnings;
+use feature ":5.10";
+
+main(@ARGV);
+
+sub main
+{
+    say "This is the Perl 5.10 new features exercise file.";
+    say "this is another line";
+}
+
+sub error
+{
+    my $e = shift || 'unkown error';
+    my $me = ( split(/[\\\/]/, $0 ) )[-1];
+    print("$me: $e\n");
+    exit 0;
+}
+```
 ## 取整 int
 截断为整数，如  
 say int(3.78);  # 3
@@ -1612,7 +1797,17 @@ printf "%o\n", 420;  # 644
 printf "%b\n", 3;    # 11
 printf "%x\n", 50;   # 32
 ```
-
+## 休眠 sleep
+还有更高精度的Time::HiRes可以使用
+```
+use strict;
+use warnings;
+use Time::HiRes qw(usleep nanosleep);
+# 1 millisecond == 1000 microseconds
+usleep(1000);
+# 1 microsecond == 1000 nanoseconds
+nanosleep(1000000);
+```
 ## pack 和 unpack 函数
 功能很强大待细致研究，暂只用于ip地址打包
 ```
@@ -2063,6 +2258,24 @@ list 的值 = 4 3 2
 ```
 
 ## 长度与最大索引 $#arr
+```
+print "标量上下文中的数组返回数组中元素数量以及最大下标\n";
+my @foo = qw(water pepsi coke lemonade);
+my $a = @foo;
+my $b = $#foo;
+print "$a\n";  #4
+print "$b\n";  #3
+
+print "输出@foo中元素的数量\n";
+print scalar(@foo), "\n"; # scalar这个特殊的伪函数强制@foo在一个标量上下文中进行计算
+
+print "标量上下文中的数组返回数组中元素的数量\n";
+my @mydata = qw(oats peas beans barley);
+if (@mydata){ #4 is true
+ print "The array has elements!\n";
+}
+
+```
 长度即数组有多少个元素，有些场景直接@数组返回的也是长度，如下演示
 ```
 my @arr = (11,22,33,44);
@@ -2166,7 +2379,7 @@ say ~~@arr;
 say scalar @arr;
 ```
 
-## 切片
+## 切片[]
 * 切片时中括号里提供的索引是一个列表，索引可以重复，可以用负数索引，可以用范围表达式(如1..3表示1 2 3)。但要注意，索引越界将取得undef值。
 
 ```
@@ -2214,6 +2427,19 @@ my @langs = qw(perl python shell php);
 say "@langs";   # perl ruby bash php
 ```
 ## 遍历与each
+```
+print "遍历数组\n";
+my @flavors = qw(chocolate vanilla strawberry mint sherbert );
+for(my $index=0; $index<@flavors; $index++) {  # @flavors是在标量上下文中计算的，计算的结果是5
+ print "$flavors[$index]\n";
+}
+
+
+print "遍历数组，迭代器\n";
+foreach my $cone (@flavors) {  # $cone设置为@flavors中的各个值
+ print "$cone\n";
+}
+```
 
 ```
 #!/usr/bin/perl
@@ -2470,6 +2696,33 @@ print "numbers = @numbers\n";
 @numbers = (@odd, @even);
 print "numbers = @numbers\n";
 ```
+## 交集，并集与补集
+取2个数组只属于各自的元素，以及2个数组的共同元素  
+![](https://img-blog.csdn.net/20140507111726234)
+```
+use strict;
+use warnings;
+use Data::Dumper;
+
+my @a = (1,2,3,4,5,6,7,8,);
+my @b = (1,9,0,4,15,6,12,8);
+my %hash_a = map{$_=>1} @a;
+my %hash_b = map{$_=>1} @b;
+my %merge_all = map {$_ => 1} @a,@b;
+my @a_only = grep {!$hash_b{$_}} @a;
+my @b_only = grep {!$hash_a{$_}} @b;
+my @common = grep {$hash_a{$_}} @b;
+my @merge = keys (%merge_all);
+print "A only :\n";
+print Dumper(\@a_only);
+print "B only :\n";
+print Dumper(\@b_only);
+print "Common :\n";
+print Dumper(\@common);
+print "Merge :\n";
+print Dumper(\@merge);
+```
+
 ## 查找
 返回index
 ```
@@ -3351,6 +3604,240 @@ print Dumper(\%contents);
 [huawei@n148 perl]$ perl 1.pl mulu.txt
 ```
 # 复杂数据结构
+## 列表，数组和哈希的嵌套
+http://blog.sina.com.cn/s/blog_48a587210101fwkd.html
+```
+Perl的数据结构中最常用到的两种类型数组和哈希。
+1. 什么是数组（Perl语言入门（第五版）的解释）？
+如果说Perl的标量代表的是单数(singular)，那么在Perl里代表复数(plural)的就是列表和数组。
+列表(list)指的是标量的有序集合，而数组(array)则是存储列表的变量。在Perl里，这两个术语常常混用。不过更精确地说，列表指的是数据，而数组指的是变量。列表的值不一定要放在数组里，但每个数组变量都一定包含一个列表（即使该列表可能是空的）。
+
+2. 什么是哈希（Perl语言入门（第五版）的解释）？
+所谓的哈希就是一种数据结构，和数组的相同之处在于：可以容纳很多值（没有上限），并能随机存取。而区别在于：不像数组是以数字来检索，哈希是以名字来检索。也就是说检索用的键不是数字，而是保证唯一的字符串。
+另一种看待哈希的方法，是将它想象成一大桶的数据，其中每个数据都有关联的标签。可以伸手到桶里任意取出一张标签，查看附着的数据是什么。但是桶里没有所谓的第一个元素，只有一堆数据。然而数组里，第一个元素为元素0.然后是元素1、2，等等。但是哈希里没有顺序，因此也没有第一，有的只是一些键/值对。这些键和值都是任意的标量，但是键总是会被转换成字符串。假如你以数字表达式50/20为键，那么它会被转换为一个含有三个字符的字符串"2.5"。
+
+
+了解完了什么是数组、列表和哈希，下面我们开始分析它们是如何嵌套使用的：
+
+Ⅰ. 列表嵌套列表（列表嵌套列表即为二维列表）
+a. 列表的声明
+方法一：
+@list = (
+["banana","apple","orange","pear"],
+["cauliflower","lettuce","tomato","cucumber"],
+["orange juice","apple juice","red tea","red wine"]
+)
+
+方法二：
+@fruit = ("banana","apple","orange","pear")
+@vegetable = ("cauliflower","lettuce","tomato","cucumber")
+@drink = ("orange juice","apple juice","red tea","red wine")
+
+正确方法：
+@list = ([@fruit],[@vegetable],[@drink])
+错误方法：
+@list = (@fruit, @vegetable, @drink)
+错误剖析：如果不用[]把每个子列表括起来，那么这个列表@list就相当于@fruit, @vegetable, @drink这三个列表拼接而成的一个一维列表相当于@list  = ("banana","apple","orange","pear","cauliflower","lettuce","tomato","cucumber","orange juice","apple juice","red tea","red wine")
+
+方法三：
+正确方法：
+$list[0] = ["banana","apple","orange","pear"]
+错误方法：
+$list[0] = ("banana","apple","orange","pear")
+错误剖析：这样的结果是$list[0] = "pear" 并且会报警告
+
+b. 列表的访问
+$list[0][0] = "banana"
+$list[0] and @list[0] 两种表示都可以，但是 @list[0] 会报警告
+
+
+Ⅱ. 列表嵌套哈希
+a. 列表的声明
+方法一：
+@list = (
+{
+'fruit' => 'banana',
+'vegetable' => 'cauliflower',
+'drink' => 'orange juice'
+},
+{
+'fruit' => 'apple',
+'vegetable' => 'lettuce',
+'drink' => 'apple juice'
+},
+{
+'fruit' => 'orange',
+'vegetable' => 'tomato',
+'drink' => 'red tea'
+},
+{
+'fruit' => 'pear',
+'vegetable' => 'cucumber',
+'drink' => 'red wine'
+}
+)
+
+方法二：
+%group1 = (
+'fruit' => 'banana',
+'vegetable' => 'cauliflower',
+'drink' => 'orange juice'
+)
+%group2 = (
+'fruit' => 'apple',
+'vegetable' => 'lettuce',
+'drink' => 'apple juice'
+)
+%group3 = (
+'fruit' => 'orange',
+'vegetable' => 'tomato',
+'drink' => 'red tea'
+)
+%group4 = (
+'fruit' => 'pear',
+'vegetable' => 'cucumber',
+'drink' => 'red wine'
+)
+
+正确方法：
+@list = ({%group1}, {%group2}, {%group3}, {%group4})
+错误方法：
+@list = (%group1, %group2, %group3, %group4)
+错误剖析：如果不用{}把每个子列表括起来，那么这个列表@list就相当于%group1, %group2, %group3, %group4 这四个哈希拼接而成的一个一维列表，相当于@list = ( 'fruit', 'banana', 'drink', 'orange juice', 'vegetable', 'cauliflower', 'fruit', 'apple', 'drink', 'apple juice', 'vegetable', 'lettuce', 'fruit', 'orange', 'drink', 'red tea', 'vegetable', 'tomato', 'fruit', 'pear', 'drink', 'red wine', 'vegetable', 'cucumber')
+
+方法三：
+正确方法：
+$list[0] = {'fruit' => 'banana', 'vegetable' => 'cauliflower','drink' => 'orange juice'}
+$list[0] = {%group1};
+错误方法：
+$list[0] = ('fruit' => 'banana', 'vegetable' => 'cauliflower','drink' => 'orange juice')
+错误剖析：这样的结果是$list[0] = 'orange juice' 并且有警告
+$list[0] = ['fruit' => 'banana', 'vegetable' => 'cauliflower','drink' => 'orange juice'] 
+错误剖析：这样的结果是$list[0] = ['fruit','banana','vegetable','cauliflower','drink','orange juice']
+
+b. 列表的访问
+$list[0]{'fruit'} = 'banana' and $list[0]{fruit} are the same.
+$list[0] = {'fruit' => 'banana','drink' => 'orange juice','vegetable' => 'cauliflower'}
+
+Ⅲ. 哈希嵌套哈希
+a. 哈希的声明
+方法一：
+my %hash = (
+group1 => {
+'fruit' => 'banana',
+'vegetable' => 'cauliflower',
+'drink' => 'orange juice'
+},
+group2 => {
+fruit => 'apple',
+vegetable => 'lettuce',
+drink => 'apple juice'
+},
+group3 => {
+'fruit' => 'orange',
+'vegetable' => 'tomato',
+'drink' => 'red tea'
+},
+group4 => {
+fruit => 'pear',
+vegetable => 'cucumber',
+drink => 'red wine'
+}
+);
+
+%hash = (
+'group1', {'fruit', 'banana', 'drink', 'orange juice', 'vegetable', 'cauliflower'},
+'group2', {'fruit', 'apple', 'drink', 'apple juice', 'vegetable', 'lettuce'},
+'group3', {'fruit', 'orange', 'drink', 'red tea', 'vegetable', 'tomato'},
+'group4', {'fruit', 'pear', 'drink', 'red wine', 'vegetable', 'cucumber'}
+);
+
+方法二：
+%group1 = (
+'fruit' => 'banana',
+'vegetable' => 'cauliflower',
+'drink' => 'orange juice'
+)
+%group2 = (
+'fruit' => 'apple',
+'vegetable' => 'lettuce',
+'drink' => 'apple juice'
+)
+%group3 = (
+'fruit' => 'orange',
+'vegetable' => 'tomato',
+'drink' => 'red tea'
+)
+%group4 = (
+'fruit' => 'pear',
+'vegetable' => 'cucumber',
+'drink' => 'red wine'
+)
+
+正确方法：
+%hash = (
+'group1' => {%group1},
+'group2' => {%group2},
+'group3' => {%group3},
+'group4' => {%group4}
+);
+错误方法：
+%hash = (%group1, %group2, %group3, %group4); 
+错误剖析：这个哈希相当于%hash = %group4
+%hash = (
+'group1' => %group1,
+'group2' => %group2,
+'group3' => %group3,
+'group4' => %group4
+); 
+错误剖析：这个哈希的结果相当于 %hash = ('tomato','group4','orange juice','vegetable','cauliflower','group2','orange','drink','fruit','pear','group1','fruit','banana','drink','drink','red wine','vegetable','cucumber','group3','fruit','red tea','vegetable')
+
+方法三：
+$hash{group1} = {%group1};
+$hash{'group1'} = {
+'fruit' => 'banana',
+'vegetable' => 'cauliflower',
+'drink' => 'orange juice'
+};
+$hash{'group1'} = {'fruit', 'banana', 'vegetable', 'cauliflower', 'drink', 'orange juice'};
+b. 哈希的访问
+$hash{'group1'}{'fruit'} = 'banana' and  $hash{group1}{fruit} are the same.
+$list{group1) = {'fruit' => 'banana','drink' => 'orange juice','vegetable' => 'cauliflower'}
+
+Ⅳ. 哈希嵌套列表
+a. 哈希的声明
+方法一：
+%hash = (
+'fruit' => ["banana","apple","orange","pear"],
+'vegetable' => ["cauliflower","lettuce","tomato","cucumber"],
+'drink' => ["orange juice","apple juice","red tea","red wine"]
+);
+
+%hash = (
+'fruit', ["banana","apple","orange","pear"],
+'vegetable', ["cauliflower","lettuce","tomato","cucumber"],
+'drink', ["orange juice","apple juice","red tea","red wine"]
+);
+
+方法二：
+@fruit = ("banana","apple","orange","pear")
+@vegetable = ("cauliflower","lettuce","tomato","cucumber")
+@drink = ("orange juice","apple juice","red tea","red wine")
+
+%hash = (
+'fruit', [@fruit],
+'vegetable', [@vegetable],
+'drink', [@vegetable]
+);
+
+方法三：
+$hash{fruit} = [@fruit]
+$hash{'fruit'} = ["banana","apple","orange","pear"]
+
+b. 哈希的访问
+$hash{'fruit'}[0] = 'banana'
+$hash{'fruit'} = ['banana','apple','orange','pear']
+```
 ## 创建
 在需要嵌套数组或hash的时候，应当使用它们的引用
 ```
@@ -5811,34 +6298,6 @@ say $arr[0];   # 11
 ```
 ## 检测原型
 
-## 静态变量 state
-state操作符功能类似于C里面的static修饰符，state关键字将局部变量变得持久。state也是词法变量，所以只在定义该变量的词法作用域中有效
-```
-use feature 'state';
- 
-sub PrintCount{
-   state $count = 0; # 初始化变量
- 
-   print "counter 值为：$count\n";
-   $count++;
-}
- 
-for (1..5){
-   PrintCount();
-}
-
-以上程序执行输出结果为：
-
-counter 值为：0
-counter 值为：1
-counter 值为：2
-counter 值为：3
-counter 值为：4
-```
-* 注1：state仅能创建闭合作用域为子程序内部的变量
-* 注2：state是从Perl 5.9.4开始引入的，所以使用前必须加上 use
-* 注3：state可以声明标量、数组、哈希。但在声明数组和哈希时，不能对其初始化（至少Perl 5.14不支持）
-
 
 # 匿名对象
 可有构建匿名的对象，这样就没必要去为只用一两次的数组、hash去取名字，有时候取名是很烦的事。
@@ -8275,92 +8734,6 @@ end
 https://github.com/vinian/perl1line.txt/blob/master/perl1line-ch.txt
 ## 命令行参数
 use Getopt::Std; 参考perl调试技术5.4
-# 智能匹配 ~~
-对两个操作数进行比较，并在互相匹配时返回真值。定义的模糊恰好反映了此操作符的智能程度，比较操作由操作数两者共同决定。之前的given（Given/When）进行的就是隐式智能匹配。
-
-
-检测某个元素是否在数组中的代码，使用智能匹配
-```
-my $x=2;
-my @array;
-if(@array~~$x)
-{
-print "$x is in the array";
-}
-else
-{
-print "$x is in the array";
-}
-```
-不使用的样子
-```
-my $x=2;
-my @array=(1,2,3);
-my $flag=0;
-for (@array)
-{
-if($x==$_)
-{
-$flag=1;
-}
-}
-
-if($flag == 1){
-print "$x is in the array";
-}
-else
-{
-print "$x is not in the array";
-}
-```
-智能匹配操作的处理方式
-```
-$a      $b        Type of Match Implied    Matching Cod
-======  =====     =====================    =============
-Hash    Hash      hash keys identical      [sort keys %$a]~~[sort keys %$b]
-Hash    Array     hash slice existence     grep {exists $a->{$_}} @$b
-Hash    Regex     hash key grep            grep /$b/, keys %$a
-Hash    Any       hash entry existence     exists $a->{$b}
-Array   Array     arrays are identical[*]
-Array   Regex     array grep               grep /$b/, @$a
-Array   Num       array contains number    grep $_ == $b, @$a
-Array   Any       array contains string    grep $_ eq $b, @$a
-Any     undef     undefined                !defined $a
-Any     Regex     pattern match            $a =~ /$b/
-Code()  Code()    results are equal        $a->() eq $b->()
-Any     Code()    simple closure truth     $b->() # ignoring $a
-Num     numish[!] numeric equality         $a == $b
-Any     Str       string equality          $a eq $b
-Any     Num       numeric equality         $a == $b
-Any     Any       string equality          $a eq $b
-
-~~两边的操作数可以互换，不影响结果
-
-例子				匹配方式
-%a ~~ %b			哈希的键是否一致
-%a ~~ @b			至少 %a 中的一个键在列表@b中
-%a ~~ /Fred/		至少一个键匹配给定的模式
-%a ~~ 'Fred'		哈希中某一指定键$a{Fred}是否存在 $a{Fred}
-@a ~~ @b			数组是否相同
-@a ~~ /Fred/		有一个元素匹配给定的模式
-@a ~~ 123			至少有一个元素转化为数字后是123
-@a ~~ 'Fred'		至少有一个元素转化为字符串后是'Fred'
-$name ~~ undef		$name确实尚未定义
-$name ~~ /Fred/		模式匹配
-123 ~~ '123.0'		数字和字符串是否相等
-'Fred' ~~ 'Fred'	字符串是否相同
-123 ~~ 456			数字是否相等
-
-```
-
-
-检测哈希是否包含k
-```
-my %data = ('google'=>'google.com', 'runoob'=>'runoob.com', 'taobao'=>'taobao.com');
-say 'find' if %data ~~ /oo/;
-[huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
-find
-```
 
 
 # List::Util模块
@@ -9461,6 +9834,15 @@ mv perl perl.old # 换个名字
 ```
 [huawei@n148 usr]$ cpanm Perl::LanguageServer
 [huawei@n148 usr]$ cpanm Perl::LanguageServer::DebuggerInterface
+```
+完成上面两步骤后启动vsc会在输出中看到找到Perl::LanguageServer这类的信息。说明安装正确了。下一步更重要，在vsc中添加断点后debug运行，出现找不到podwalker与dump错误则可以手动添加库路径到DebuggerInterface.pm中，确保此2个pm文件在添加的路径中即可。
+```
+[huawei@n148 ~]$ head /usr/local/perl/lib/5.30.0/Perl/LanguageServer/DebuggerInterface.pm
+#
+# We include DB package from perl core here, to be able to modify it...
+#
+use lib '/usr/local/perl/lib/perl5/x86_64-linux-thread-multi/';
+use lib '/home/huawei/perl5/lib/perl5';
 ```
 # perlbrew
 https://perlbrew.pl/Perlbrew-%E4%B8%AD%E6%96%87%E7%B0%A1%E4%BB%8B.html
