@@ -156,6 +156,13 @@ junmajinlong
 ($a,$b)=qw/a1 2b/;
 ($a,$b)=($b,$a);
 say "$a,$b";
+
+三个也行
+($alpha, $beta, $production) = qw(January March August);
+# move beta       to alpha,
+# move production to beta,
+# move alpha      to production
+($alpha, $beta, $production) = ($beta, $production, $alpha);
 ```
 
 ## 左值、右值
@@ -1738,25 +1745,35 @@ say rand();     # 返回0到1之间的随机数：0.25324216212994
 say rand(1.5);  # 返回0到1.5之间的随机数：1.21238530987939
 say rand(10);   # 返回0到10之间的随机数：9.61505077404098
 say int(rand(10)); # 要获取随机整数，加上int()。返回0到10之间的随机整数
+
+
+my $X=10;
+my $Y=20;
+my $random = int( rand( $Y-$X+1 ) ) + $X;
+#-----------------------------
+$random = int( rand(51)) + 25;
+print "$random\n";
+#-----------------------------
+my @array=qw/a ab abc/;
+my $elt = $array[ rand @array ];	随机数组元素
+print "$elt\n";
+#-----------------------------
+my @chars = ( "A" .. "Z", "a" .. "z", 0 .. 9, qw(! @ $ % ^ & *) );
+print "@chars\n";
+my $password = join("", @chars[ map { rand @chars } ( 1 .. 8 ) ]);	随机字符密码
+print "$password\n";
+
+
+其他随机
+use Math::TrulyRandom;
+$random = truly_random_value();
+
+use Math::Random;
+$random = random_uniform();
 ```
-## 大小写转换
-* lc：(lower case)将后面的字母转换为小写，是\L的实现
-* uc：(uppercase)将后面的字母转换为大写，是\U的实现
-* fc：(foldcase)和lc基本等价，但fc可以处理UTF-8类的字母
-* lcfirst：将后面第一个字母转换为小写，是\l的实现
-* ucfirst：将后面第一个字母转换为大写，是\u的实现
-```
-say lc("HELLO");      # hello
-say ucfirst("hello"); # Hello
-```
-## 进制、编码转换
-* chr：ASCII码(或unicode码点)转换为对应字符
-* ord：字符转换为ASCII码(或unicode码点)
-```
-say chr(65);    # A
-say ord('A');   # 65
-say ord('AB');  # 65
-```
+
+## 进制转换
+
 * hex：十六进制字符串转换为十进制数值  
 注意，如果给定的不是字符串，而是数值本身，则数值转换为十进制后被当作十六进制字符串进行处理。
 ```
@@ -1797,17 +1814,25 @@ printf "%o\n", 420;  # 644
 printf "%b\n", 3;    # 11
 printf "%x\n", 50;   # 32
 ```
-## 休眠 sleep
-还有更高精度的Time::HiRes可以使用
+二进制与十进制的转换
 ```
-use strict;
-use warnings;
-use Time::HiRes qw(usleep nanosleep);
-# 1 millisecond == 1000 microseconds
-usleep(1000);
-# 1 microsecond == 1000 nanoseconds
-nanosleep(1000000);
+sub dec2bin {
+    my $str = unpack("B32", pack("N", shift));
+    $str =~ s/^0+(?=\d)//;   # otherwise you'll get leading zeros
+    return $str;
+}
+#-----------------------------
+sub bin2dec {
+    return unpack("N", pack("B32", substr("0" x 32 . shift, -32)));
+}
+#-----------------------------
+my $num = bin2dec('0110110');  # $num is 54
+print "$num\n";
+my $binstr = dec2bin(54);      # $binstr is 110110
+print "$binstr\n";
+
 ```
+
 ## pack 和 unpack 函数
 功能很强大待细致研究，暂只用于ip地址打包
 ```
@@ -1826,7 +1851,168 @@ print "$addr\n";
 18      157     0       125
 18.157.0.125
 ```
+# 日期时间、计时器与sleep
+## 取当前年月日时分秒
+```
+use Time::localtime;
+my $tm = localtime;
+printf("Dateline: %02d:%02d:%02d-%04d/%02d/%02d\n", $tm->hour, $tm->min, $tm->sec, $tm->year+1900, $tm->mon+1, $tm->mday);
 
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/1.pl"
+Dateline: 14:56:43-2022/04/12
+```
+## 各种格式解析
+```
+use Time::Local;
+my $date = "1998-06-03";
+my ($yyyy, $mm, $dd) = $date =~ /(\d+)-(\d+)-(\d+)/;
+print "Date was $mm/$dd/$yyyy\n";  # Date was 06/03/1998
+my $epoch_seconds = timelocal(59, 29, 23, $dd, $mm, $yyyy);
+print "$epoch_seconds\n";	# 新纪元秒数
+print "Scalar localtime gives: ", scalar(localtime($epoch_seconds)), "\n";	# Fri Jul  3 23:29:59 1998
+use POSIX qw(strftime);
+print "strftime gives: ", strftime("%A %D", localtime($epoch_seconds)), "\n"; # Friday 07/03/98
+my $STRING = localtime($epoch_seconds);
+print "$STRING\n";	# Fri Jul  3 23:29:59 1998
+$date = ParseDate($STRING);
+use Date::Manip qw(ParseDate UnixDate);
+my $datestr = UnixDate($date, "%a %b %e %H:%M:%S %z %Y");    # as scalar
+print "Date::Manip gives: $datestr\n"; # Fri Jul  3 23:29:59 -0500 1998 这里zone显示了-0500可以不使用
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/1.pl"
+Date was 06/03/1998
+899479799
+Scalar localtime gives: Fri Jul  3 23:29:59 1998
+strftime gives: Friday 07/03/98
+Fri Jul  3 23:29:59 1998
+Date::Manip gives: Fri Jul  3 23:29:59 -0500 1998
+```
+## 日期加减
+```
+my $tm = localtime;
+use Time::localtime;
+
+use Date::Calc qw(Add_Delta_Days);	# 添加天数
+printf("Dateline: %02d:%02d:%02d-%04d/%02d/%02d\n", $tm->hour, $tm->min, $tm->sec, $tm->year+1900, $tm->mon+1, $tm->mday);
+my ($y2, $m2, $d2) = Add_Delta_Days($tm->year+1900, $tm->mon+1, $tm->mday, 30);
+printf("Dateline: %02d:%02d:%02d-%04d/%02d/%02d\n", $tm->hour, $tm->min, $tm->sec, $y2, $m2, $d2);
+
+
+my ($year, $month, $day) = Add_Delta_Days(1973, 1, 18, 55);
+print "Nat was 55 days old on: $month/$day/$year\n";
+# Nat was 55 days old on: 3/14/1973
+
+#-----------------------------
+use Date::Calc qw(Add_Delta_DHMS);	# 添加天数、小时、分钟、秒
+my ($days_offset, $hour_offset, $minute_offset, $second_offset) = (10, 9, 80, 100);
+my ($year2, $month2, $day2, $h2, $mm2, $s2) = Add_Delta_DHMS(
+	$tm->year+1900, $tm->mon+1, $tm->mday, $tm->hour, $tm->min, $tm->sec,
+   	$days_offset, $hour_offset, $minute_offset, $second_offset);
+printf("Dateline: %02d:%02d:%02d-%04d/%02d/%02d\n", $h2, $mm2, $s2, $year2, $month2, $day2);				
+
+
+my ($year3, $month3, $day3, $hh, $mm, $ss) = Add_Delta_DHMS(
+    1973, 1, 18, 3, 45, 50, # 18/Jan/1973, 3:45:50 am
+             55, 2, 17, 5); # 55 days, 2 hrs, 17 min, 5 sec
+print "To be precise: $hh:$mm:$ss, $month3/$day3/$year3\n";
+# To be precise: 6:2:55, 3/14/1973
+
+```
+## 两个日期的差
+```
+use Date::Calc qw(Delta_DHMS);
+my @bree = (1981, 6, 16, 4, 35, 25);   # 16 Jun 1981, 4:35:25
+my @nat  = (1973, 1, 18, 3, 45, 50);   # 18 Jan 1973, 3:45:50
+my @diff = Delta_DHMS(@nat, @bree);
+print "Bree came $diff[0] days, $diff[1]:$diff[2]:$diff[3] after Nat\n";
+# Bree came 3071 days, 0:49:35 after Nat
+
+my ($days, $hours, $minutes, $seconds) =
+  Delta_DHMS( 1981, 6, 16, 4, 35, 25,  # earlier
+              1973, 1, 18, 3, 45, 50); # later
+print "$days, $hours, $minutes, $seconds\n";
+($days, $hours, $minutes, $seconds) =
+  Delta_DHMS( 1973, 1, 18, 3, 45, 50, # 先早后晚为正
+			   1981, 6, 16, 4, 35, 25, );
+print "$days, $hours, $minutes, $seconds\n";
+
+
+use Date::Calc qw(Delta_Days);
+@bree = (1981, 6, 16);      # 16 Jun 1981
+@nat  = (1973, 1, 18);      # 18 Jan 1973
+my $difference = Delta_Days(@nat, @bree);
+print "There were $difference days between Nat and Bree\n";
+# There were 3071 days between Nat and Bree
+
+$days = Delta_Days( 1981, 12, 30, 1973, 11, 18);
+print  $days, "\n";
+$days = Delta_Days(1973, 11, 18, 1981, 12, 30); # 先早后晚为正
+print  $days, "\n";
+```
+## 星期几、第几周、第几天
+```
+use Date::Calc qw(Day_of_Week Week_Number Day_of_Week_to_Text Day_of_Year);
+
+my $year= 1981;
+my $month = 6;         # (June)
+my $day   = 16;
+
+my $wday = Day_of_Week($year, $month, $day);
+print "$month/$day/$year was a ", Day_of_Week_to_Text($wday), "\n";
+## see comment above
+
+my $wnum = Week_Number($year, $month, $day);
+print "in the $wnum week.\n";
+# 6/16/1981 was a Tuesday
+# 
+# in week number 25.
+
+
+# you have $year, $month, and $day
+# $day is day of month, by definition.
+$wday = Day_of_Week($year, $month, $day);
+$wnum = Week_Number($year, $month, $day);
+my $dnum = Day_of_Year($year, $month, $day);
+print "$wday $wnum $dnum \n";
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/1.pl"
+6/16/1981 was a Tuesday
+in the 25 week.
+2 25 167 
+```
+## 搞精度计时器
+```
+use Time::HiRes qw(gettimeofday);
+print "Press return when ready: ";
+my $before = gettimeofday;
+my $line = <>;	# 读取按键输入
+my $elapsed = gettimeofday-$before;
+print "You took $elapsed seconds.\n";
+```
+## 休眠 sleep
+
+```
+use strict;
+use warnings;
+use Time::HiRes qw(usleep nanosleep);
+# 1 millisecond == 1000 microseconds
+usleep(1000);
+# 1 microsecond == 1000 nanoseconds
+nanosleep(1000000);
+```
+还可以使用select或是高精度sleep
+```
+while (<>) {
+    select(undef, undef, undef, 0.25);
+    print "a\n";
+}
+
+use Time::HiRes qw(sleep);
+while (<>) {
+    sleep(0.25);
+    print "a\n";
+}
+```
 # 字符串相关
 ## 单引号和双引号
 单引号内除了'和\要加\，且只能转这2个，其余都不转义，都原样输出
@@ -1836,6 +2022,10 @@ say ' $a \' "  \\  \t  \n';    # 单引号
 [huawei@n148 perl]$ /usr/bin/perl "/home/huawei/playground/perl/1.pl"
  $a ' "  \  \t  \n
 [huawei@n148 perl]$ 
+
+
+$string = '\n'; # two characters, \ and an n 注意这是2个字符而不是换行
+$string = "\n"; # a "newline" character 这里是换行
 ```
 双引号的都转义
 ```
@@ -1862,6 +2052,14 @@ print "$string\n";
 * 用单引号引起表示这段字符串不做内插，如果没有使用单引号默认就是双引号可以内插
 
 ```
+$a = <<"EOF";
+This is a multiline here document
+terminated by EOF on a line by itself
+EOF
+
+上面就是定义了一个2行的字符串，“EOF”仅是个标志没有实际作用，就如同下面的“END_BLURB”
+
+
 my $v=12345;
 my $blurb =<<'END_BLURB';		# 这里模式单引号，下面的$v不会内插
 He looked up. $v "Change is the constant on which they all
@@ -1953,6 +2151,109 @@ JuNMaJiNLoNg
 like($stdout, qr@\Qdbda|DDL|CREATE TABLE|TABLE|public.t1|create table t1(a int)\E@, 'test 4 find DDL');
 like($stdout, qr@\Qdbda|DDL|DROP TABLE|TABLE|public.t1|drop table t1\E@, 'test 4 find DDL');
 ```
+## ASCII与char的转换
+* chr：ASCII码(或unicode码点)转换为对应字符
+* ord：字符转换为ASCII码(或unicode码点)
+```
+my $char = 'E';
+my $num  = ord($char);	# char转ascii码值
+$char = chr($num);	# ascii码值转char
+$char = sprintf("%c", $num); # slower than chr($num)
+printf("Number %d is character %c\n", $num, $num);
+
+my @ASCII = unpack("C*", qq/sample/);	# 将char数组转为对应的ascii码值的数组
+print "@ASCII\n";
+my @ascii_character_numbers = unpack("C*", "sample"); # same
+print "@ascii_character_numbers\n";
+
+my $word = pack("C*", qw/115 97 109 112 108 101/);	# 将码值的数组转为对应的char字符串
+print "$word\n";
+$word = pack("C*", @ascii_character_numbers); # same
+print "$word\n";
+$word = pack("C*", 115, 97, 109, 112, 108, 101);   # same
+print "$word\n";
+
+my $hal = "HAL";
+my @ascii = unpack("C*", $hal);
+print "@ascii\n";	# 打印每个ascii值
+foreach my $val (@ascii) {
+    $val++;  # add one to each ASCII value，这里使用的是引用，下面打印的ascii值变了
+}
+print "@ascii\n";
+my $ibm = pack("C*", @ascii);
+print "$ibm\n";             # prints "IBM"
+
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/1.pl"
+Number 69 is character E
+115 97 109 112 108 101
+115 97 109 112 108 101
+sample
+sample
+sample
+72 65 76
+73 66 77
+IBM
+[huawei@n148 perl]$ 
+```
+## 迭代处理每一个字符
+```
+my @array = split(//, "sample"); # 拆分为字符数组
+print "@array\n"; # s a m p l e
+@array = unpack("C*", "sample"); # 转为ascii码数组
+print "@array\n";	# 115 97 109 112 108 101
+#--统计有多少种不同的字母---------------------------
+my %seen = ();
+my $string = "an apple a day";
+foreach my $byte (split //, $string) {
+    $seen{$byte}++;
+}
+# while ($string =~ /(.)/g) {	使用正则方式，效果一样
+    # $seen{$1}++;
+# }
+print "unique chars are: ", sort(keys %seen), "\n";	#  adelnpy
+```
+## 控制大小写，实现驼峰
+* lc：(lower case)将后面的字母转换为小写，是\L的实现
+* uc：(uppercase)将后面的字母转换为大写，是\U的实现
+* fc：(foldcase)和lc基本等价，但fc可以处理UTF-8类的字母
+* lcfirst：将后面第一个字母转换为小写，是\l的实现
+* ucfirst：将后面第一个字母转换为大写，是\u的实现
+```
+my $little = "bo peep";
+my $big = uc($little);          # "bo peep" -> "BO PEEP"
+print "$big\n";
+$little = lc($big);             # "JOHN"    -> "john"
+print "$little\n";
+$big = "\U$little";             # "bo peep" -> "BO PEEP"
+print "$big\n";
+$little = "\L$big";             # "JOHN"    -> "john"
+print "$little\n";
+#-----------------------------
+$big = "\u$little";             # "bo"      -> "Bo"
+print "$big\n";
+$little = "\l$big";             # "BoPeep"    -> "boPeep" 
+print "$little\n";
+#-----------------------------
+my $beast   = "dromedary";
+# capitalize various parts of $beast
+my $capit   = ucfirst($beast);         # Dromedary
+print "$capit\n";
+$capit   = "\u\L$beast";            # (same)
+print "$capit\n";
+my $capall  = uc($beast);              # DROMEDARY
+print "$capall\n";
+$capall  = "\U$beast";              # (same)
+print "$capall\n";
+my $caprest = lcfirst(uc($beast));     # dROMEDARY
+print "$caprest\n";
+$caprest = "\l\U$beast";            # (same)
+print "$caprest\n";
+
+my $text = "thIS is a loNG liNE";
+$text =~ s/(\w+)/\u\L$1/g;
+print $text; # This Is A Long Line
+```
 
 ## 字符串连接和重复
 Perl使用点.来串联字符串。Perl使用x来重复字符串指定次数，如果x重复次数是小数，则截断为整数，如果x是0，则清空字符串。
@@ -2043,7 +2344,27 @@ chop $name2;   # $name2 = "junmajinlon"
 
 
 ## 翻转字符串 reverse
-见列表的reverse
+```
+my $gnirts   = reverse("sample");       # 翻转字符串	
+print "$gnirts\n"; # elpmas
+my @words = qw/one two three/;
+my @sdrow    = reverse(@words);        # reverse elements in @words 翻转数组元素顺序
+print "@sdrow\n"; #   three two one
+my $confused = reverse(@words);        # reverse letters in join("", @words) 上面的结果连起来
+print "$confused\n"; #   eerhtowteno
+```
+## 翻转一句话
+```
+my $string = 'Yoda said, "can you see this?"';
+my @allwords    = split(" ", $string);
+my $revwords    = join(" ", reverse @allwords);
+print $revwords, "\n"; # this?" see you "can said, Yoda
+
+
+my $revwords = join(" ", reverse split(" ", $string));	# 效果一样
+$revwords = join("", reverse split(/(\s+)/, $string));	# 效果一样
+
+```
 ## 取子串、替换子串 substr
 语法
 ```
@@ -7282,6 +7603,9 @@ https://www.shuzhiduo.com/A/pRdBOKZnzn/
 	3 将'urllist' => [q[http://mirrors.neusoft.edu.cn/cpan/]], 中的地址换为新地址
 	4 保存完毕
 ## cpan
+yum install perl-CPAN
+
+
 cpan命令是随perl一起安装的一个perl脚本
 ```
 -a：创建CPAN.pm的autobundle
@@ -7298,6 +7622,10 @@ cpan命令是随perl一起安装的一个perl脚本
 [huawei@n148 perl]$ cpan -a						# 查看已安装模块
 [huawei@n148 perl]$ cpan -i Term::ANSIScreen	# 安装模块
 [huawei@n148 perl]$ perldoc Term::ANSIScreen	# 查看模块说明
+
+cpan -i IPC::Run
+cpan -i Test::More
+cpan -i Time::HiRes
 ```
 ## 查看模块的信息
 ```
@@ -7323,6 +7651,14 @@ cpan -a
 cpan -a | grep Moose
 ```
 ## CPANMinus
+```
+https://www.cnblogs.com/wq242424/p/8037447.html
+
+yum install perl-App-cpanminus.noarch
+默认安装位置在/home/huawei/perl5/
+```
+
+
 这个是真正的完全一键安装，无需任何配置。而且，它没有交互式模式。
 cpanm 其实只是一个可执行文件而已。将它下载到 bin 目录，然后添加执行权限就可以用了
 ```
@@ -9804,7 +10140,54 @@ Devel::Cover模块可用于对函数、语句、分支、条件各自进行统�
 * Test::Most集成了几个有用的测试模块。
 # 调试
 使用perl -dw xxx.pl进行启动，效果类似gdb
-# 升级perl
+# 安装perl
+## 卸载系统自带的perl
+```
+yum remove perl
+然后再 whereis perl 看哪里还有然后手动删除
+```
+## 安装
+```
+wget https://www.cpan.org/src/5.0/perl-5.34.0.tar.gz
+tar zxvf perl-5.34.0.tar.gz
+cd perl-5.34.0
+./Configure -des -Dprefix=/usr/local/perl -Dusethreads -Uversiononly
+make -j 3
+make -j 3 install
+
+
+cd /usr/bin
+mv perl perl.old
+ln -s /usr/local/perl/bin/perl /usr/bin/perl 
+perl -version 
+```
+然后最好设置一下环境变量，避免cpan安装模块时候无权限。  
+通过设置环境变量，可在无root权限的情况下，用CPAN安装Perl模块到个人目录。  
+编辑~/.bashrc文件，末尾添加如下设置。第一个变量$LOCAL_APP根据自己情况修改，后面可不修改直接复制。
+```
+# local app path
+LOCAL_APP=$HOME/local/app
+
+# local perl edition
+LOCAL_PERL_EDITION=$LOCAL_APP/perl
+export PERL5LIB=$LOCAL_PERL_EDITION/lib
+export PATH=$LOCAL_PERL_EDITION/bin:$PATH
+
+# local perl lib
+LOCAL_PERL_LIB=$LOCAL_APP/perl5
+export PERL_LOCAL_LIB_ROOT="$PERL_LOCAL_LIB_ROOT:$LOCAL_PERL_LIB"
+export PERL_MB_OPT="--install_base $LOCAL_PERL_LIB"
+export PERL_MM_OPT="INSTALL_BASE=$LOCAL_PERL_LIB"
+export PERL5LIB=$LOCAL_PERL_LIB/lib/perl5:$PERL5LIB
+export PATH=$LOCAL_PERL_LIB/bin:$PATH
+
+
+save后再使配置文件生效，执行
+source ~/.bashrc
+
+以后就可以capn -i xxx进行安装模块了
+```
+# 升级perl与LanguageServer
 ```
 1：查询perl的真实安装路径
 whereis perl
