@@ -790,6 +790,17 @@ say $$age1_ref;    # 33
 ```
 ## 数组的引用
 ```
+遍历数组的引用
+my @fruits = ( "Apple", "Blackberry" );
+my $fruit_ref = \@fruits;
+foreach my $fruit (@$fruit_ref) {
+    print "$fruit\n";
+}
+for (my $i=0; $i <= $#$fruit_ref; $i++) {
+    print "$fruit_ref->[$i]\n";
+}
+
+
 my @names =(77,88,99);
 my $address = \@names;
 print "$#names\t$address\n";	# 打印出最大索引与数组地址
@@ -2532,6 +2543,7 @@ say rindex $str,"you",10; # 找出offset=10左边的最后一个you，输出：5
 ## 创建
 数组变量以 @ 符号开始，元素放在括号内
 ```
+my @bigarray = ();空得
 @hits = (25, 30, 40);             
 @names = ("google", "runoob", "taobao");
 print "\$hits[0] = $hits[0]\n";
@@ -2760,6 +2772,14 @@ print "遍历数组，迭代器\n";
 foreach my $cone (@flavors) {  # $cone设置为@flavors中的各个值
  print "$cone\n";
 }
+
+可以同时遍历多个数组
+my @a = ( .5, 3 ); 
+my @b =( 0, 1, -100 );
+foreach my $item (@a, @b) {
+    $item *= 7;
+}
+print "@a\n@b\n";
 ```
 
 ```
@@ -2992,6 +3012,43 @@ say "new arr: @new_arr";    # 输出：空
 ```
 ## 排序 sort
 数组内建支持。案例见列表sort
+
+## 调整size
+grow or shrink @ARRAY  
+```
+$#ARRAY = $NEW_LAST_ELEMENT_INDEX_NUMBER;
+$ARRAY[$NEW_LAST_ELEMENT_INDEX_NUMBER] = $VALUE;
+```
+```
+my @people = qw(Crosby Stills Nash Young);
+sub what_about_that_array {
+    print "The array now has ", scalar(@people), " elements.\n";
+    print "The index of the last element is $#people.\n";
+    print "Element #3 is `$people[$#people]'.\n" if defined($people[$#people]);
+	print "未定义\n" unless defined($people[$#people]);
+};
+what_about_that_array();
+$#people--;
+what_about_that_array();
+$#people = 10_000;
+what_about_that_array();
+$#people = 4;
+what_about_that_array();
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/1.pl"
+The array now has 4 elements.
+The index of the last element is 3.
+Element #3 is `Young'.
+The array now has 3 elements.
+The index of the last element is 2.
+Element #3 is `Nash'.
+The array now has 10001 elements.
+The index of the last element is 10000.
+未定义
+The array now has 5 elements.
+The index of the last element is 4.
+未定义
+```
 ## 合并
 要扩展数组，Perl中的逻辑是将数组放进小括号中，这会将数组转变成列表格式，然后在列表上扩展更多元素。也可以在数组中嵌入多个数组
 ```
@@ -3198,7 +3255,52 @@ $string2 = join( ',', @names );
 print "$string1\n";
 print "$string2\n";
 ```
+大案例
+```
+my @lists = (
+    [ 'just one thing' ],
+    [ qw(Mutt Jeff) ],
+    [ qw(Peter Paul Mary) ],
+    [ 'To our parents', 'Mother Theresa', 'God' ],
+    [ 'pastrami', 'ham and cheese', 'peanut butter and jelly', 'tuna' ],
+    [ 'recycle tired, old phrases', 'ponder big, happy thoughts' ],
+    [ 'recycle tired, old phrases', 
+	'ponder big, happy thoughts', 
+	'sleep and dream peacefully' ],
+    );
 
+foreach my $aref (@lists) {
+    # 元素是列表，打印元素地址,元素内size，列表内容
+	print "The item addr: " . $aref . ", size: " . @$aref . ", and value: @$aref\n";	
+	commify_series(@$aref);
+} 
+
+sub commify_series {
+    my $sepchar = grep(/,/ => @_) ? ";" : ","; # 遍历传入的列表，判断列表的元素中是否有带逗号的，有则返回；无则返回，
+	print $sepchar, "元素个数：" , scalar(@_), "\n";
+	# 下面这个是嵌套？：用于判断传入的列表的元素数量
+    (@_ == 0) ? ''                                      :
+    (@_ == 1) ? $_[0]                                   :
+    (@_ == 2) ? join(" and ", @_)                       :  # 2个元素用and连接
+                join("$sepchar ", @_[0 .. ($#_-1)], "and $_[-1]"); # 再多就用上面得到的分隔符连接所有元素
+}
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/1.pl"
+The item addr: ARRAY(0x2186a68), size: 1, and value: just one thing
+,元素个数：1
+The item addr: ARRAY(0x21a38d0), size: 2, and value: Mutt Jeff
+,元素个数：2
+The item addr: ARRAY(0x21a39a8), size: 3, and value: Peter Paul Mary
+,元素个数：3
+The item addr: ARRAY(0x21a39f0), size: 3, and value: To our parents Mother Theresa God
+,元素个数：3
+The item addr: ARRAY(0x21a3b58), size: 4, and value: pastrami ham and cheese peanut butter and jelly tuna
+,元素个数：4
+The item addr: ARRAY(0x2386190), size: 2, and value: recycle tired, old phrases ponder big, happy thoughts
+;元素个数：2
+The item addr: ARRAY(0x23f7e60), size: 3, and value: recycle tired, old phrases ponder big, happy thoughts sleep and dream peacefully
+;元素个数：3
+```
 ## grep
 从列表中筛选符合条件的元素，返回列表（结果赋值给数组）或count（结果赋值给标量）。grep会迭代所有，效率并不高。{}里条件为t则将本次迭代的元素放进返回值列表中。
 ```
@@ -9092,6 +9194,8 @@ say "$base, $path, $suffix";
 ```
 
 # 面向对象
+## bless
+http://blog.chinaunix.net/uid-28246152-id-3399154.html
 ## UNIVERSAL包
 Perl内部的UNIVERSAL包是其他所有包的祖先，以面向对象的视角来看那就是终极父类。UNIVERSAL提供了一些方法可供使用、继承和重写。
 ### VERSION()方法
@@ -10178,7 +10282,8 @@ LOCAL_PERL_LIB=$LOCAL_APP/perl5
 export PERL_LOCAL_LIB_ROOT="$PERL_LOCAL_LIB_ROOT:$LOCAL_PERL_LIB"
 export PERL_MB_OPT="--install_base $LOCAL_PERL_LIB"
 export PERL_MM_OPT="INSTALL_BASE=$LOCAL_PERL_LIB"
-export PERL5LIB=$LOCAL_PERL_LIB/lib/perl5:$PERL5LIB
+export PERL5LIB=$LOCAL_PERL_LIB/lib/perl5:.:$PERL5LIB
+# 注意上面里的.是代表当前路径，很重要，这样就能导入当前目录的自定义pm文件了，不会再找不到了，也不需要再在添unshift (@INC, cwd());
 export PATH=$LOCAL_PERL_LIB/bin:$PATH
 
 
@@ -10187,6 +10292,8 @@ source ~/.bashrc
 
 以后就可以capn -i xxx进行安装模块了
 ```
+## 设置PERL5LIB
+见上面“安装”的注意那句
 # 升级perl与LanguageServer
 ```
 1：查询perl的真实安装路径
