@@ -8193,6 +8193,71 @@ Animal-Rule/
 
 
 # 多文件
+## 导出变量与函数
+有这个就行了，后面几种方法都可以不用看了。。。
+m2.pm
+```
+package m2;
+
+use Modern::Perl;
+use Cwd;
+use Mojo::File;
+
+
+use Exporter;
+our @ISA = 'Exporter';
+our @EXPORT = qw($htmlpath myadd);
+
+sub myadd
+{
+	my $a=shift;
+	my $b=shift;
+	print "mod1\n";
+	$a+$b;
+}
+
+my $rootpath = cwd();
+our $htmlpath = Mojo::File->new($rootpath, 'html');
+
+
+1
+```
+m3.pm
+```
+package m3; 
+use strict;
+use warnings;
+
+use Exporter;
+our @ISA = 'Exporter';
+our @EXPORT = qw(@a @b);
+
+our (@a, @b);
+
+@a = 1..3;
+@b = "a".."c";
+```
+test.pl
+```
+use Modern::Perl;
+use Cwd;
+
+use m3;     # Only imports $a 
+use m2;
+say @a;
+say @b;
+say $htmlpath;
+say myadd(10,20);
+```
+运行如下，确保在PERL5LIB里包含了".",即当前目录，否则会找不到。。。
+```
+perl "/home/huawei/hwwork/postdb_doc/test.pl"
+123
+abc
+/home/huawei/hwwork/postdb_doc/html
+mod1
+30
+```
 ## eval方式插入代码
 能用的方式，但不够漂亮。执行多次会出现代码重定义（未测试）
 ```
