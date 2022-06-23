@@ -7564,6 +7564,18 @@ t1_res = 8.35062209823267
 t2_res = 4.04523008343862
 
 ```
+下面2中种方法，第一种会有没join全的。。。
+```
+# my $running_threads = $totalthreads;
+# while ($running_threads) {
+# 	for my $thread (threads->list(threads::joinable)) {
+# 		$thread->join();
+# 		$running_threads--;
+# 		$log->debug("$running_threads threads remaining");
+# 	}
+# }
+$_->join() for threads->list();
+```
 ## detach
 detach 就是把新创建的线程与当前的主线程剥离开来，让它从此和主线程无关。当你使用 detach 方法的时候，表明主线程并不关心新建线程执行以后返回的结果，新建线程执行完毕后 Perl 会自动释放它所占用的资源。  
 一个新建线程一旦被 detach 以后，就无法再 join 了。当你使用 detach 方法剥离线程的时候，有一点需要特别注意，那就是你需要保证被创建的线程先于主线程结束，否则你创建的线程会被迫结束，除非这种结果正是你想要的，否则这也许会造成异常情况的出现，并增加程序调试的难度。
