@@ -7482,26 +7482,497 @@ $SIG{CHLD} = sub
 system、systemx、capture、capturex
 ## 通过文件句柄执行外部进程
 # 多线程
-本代码基于perl网络编程，书内容较老，也许现今已不适用，仅参考。  
-## 创建 new与join
-很傻的操作，仅演示了api的作用，如果把sleep去掉，则是线程1循环完毕才会循环线程2...
+https://www.cnblogs.com/f-ck-need-u/p/10420910.html  
+使用threads包。线程一旦被成功创建，它就立刻开始运行了，这个时候你面临两种选择，分别是 join 或者 detach 这个新建线程。当然你也可以什么都不做，不过这可不是一个好习惯。 
+## create、new、tid
+create、new两个名字效果抑郁一使用线程回调或是匿名回调均可以，还可带有线程参数
 ```
-use strict;
-use Thread;
-my $th1=Thread->new(\&hello, "im t1", 50);
-my $th2=Thread->new(\&hello, "im t2", 50);
-$_->join foreach($th1, $th2);
-
-sub hello{
-	my ($msg, $loop) = @_;
-	for (1..$loop) 
-	{
-		print $msg, ":$_\n";
-		sleep(1);
-	}
+BEGIN{
+    use Config;
+    if ($Config{usethreads}) {print "support old thread\n";}
+    if ($Config{useithreads}) {print "support interpreter threads\n";}
 }
+
+my $tid = threads->tid();
+printf("Hello main thread $tid!\n"); 
+sub say_hello { 
+	my $tid = threads->tid();
+    printf("Hello thread $tid! @_.\n"); 
+    return( rand(10) ); 
+} 
+ 
+my $t1 = threads->create( \&say_hello, "param1", "param2" ); 
+my $t2 = threads->new( "say_hello", "param3", "param4" ); 
+my $t3 = threads->create( 
+sub { 
+	my $tid = threads->tid();
+    printf("Hello thread $tid! @_\n"); 
+    return( rand(10) ); 
+}, "param5", "param6" );
+
+support old thread
+support interpreter threads
+Hello main thread 0!
+Hello thread 1! param1 param2.
+Hello thread 2! param3 param4.
+Hello thread 3! param5 param6
+Perl exited with active threads:
+        1 running and unjoined
+        2 finished and unjoined
+        0 running and detached
+``` 
+## join
+join()做三件事：
+* 等待子线程退出，等待过程中父线程一直阻塞
+* 子线程退出后，为子线程收尸(OS clean up)
+* 如果子线程有返回值，则收集返回值
+
+案例：父进程等待、收尸、收集返回值
 ```
-## 锁 lock
+my ($thr) = threads->create(\&sub1);
+my @returnData = $thr->join();
+print 'thread returned: ', join('@', @returnData), "\n";
+sub sub1 {
+    # 返回值是列表
+    return ('fifty-six', 'foo', 2);
+}
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/0.pl"
+thread returned: fifty-six@foo@2
+```
+普通案例
+```
+use threads; 
+ 
+sub func { 
+ sleep(1); 
+ return(rand(10)); 
+} 
+ 
+my $t1 = threads->create( \&func ); 
+my $t2 = threads->create( \&func ); 
+ 
+printf("do something in the main thread\n"); 
+ 
+my $t1_res = $t1->join(); 
+my $t2_res = $t2->join(); 
+ 
+printf("t1_res = $t1_res\nt2_res = $t2_res\n");
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/0.pl"
+do something in the main thread
+t1_res = 8.35062209823267
+t2_res = 4.04523008343862
+
+```
+## detach
+detach 就是把新创建的线程与当前的主线程剥离开来，让它从此和主线程无关。当你使用 detach 方法的时候，表明主线程并不关心新建线程执行以后返回的结果，新建线程执行完毕后 Perl 会自动释放它所占用的资源。  
+一个新建线程一旦被 detach 以后，就无法再 join 了。当你使用 detach 方法剥离线程的时候，有一点需要特别注意，那就是你需要保证被创建的线程先于主线程结束，否则你创建的线程会被迫结束，除非这种结果正是你想要的，否则这也许会造成异常情况的出现，并增加程序调试的难度。
+```
+sub mysub {
+    #alarm 10;
+    for (1..10){
+        print "I am detached thread\n";
+        sleep 1;
+    }
+}
+
+my $thr1 = threads->new(\&mysub)->detach();
+
+print "main thread will exit in 2 seconds\n";
+sleep 2
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/0.pl"
+main thread will exit in 2 seconds
+I am detached thread
+I am detached thread
+I am detached thread
+```
+## 线程的退出
+正常情况并且大多情况下，线程都应该通过子程序return的方式退出线程。但是也有其它可能。
+
+
+* threads->exit()
+线程自身可以调用threads->exit()以便在任何时间点退出。这会使得线程在标量上下文返回undef，在列表上下文返回空列表。如果是在main线程中调用`threads->exit()`，则等价于exit(0)
+
+* threads->exit(status)
+在线程中调用时，等价于threads->exit()，退出状态码status会被忽略。在main线程中调用时，等价于exit(status)
+
+* die()
+直接调用die函数会让线程直接退出，如果设置了 $SIG{__DIE__} 的信号处理机制，则调用该处理方法，像一般情况下的die一样
+
+* exit(status)
+在线程内部调用exit()函数会导致整个程序终止(进程中断)，所以不建议在线程内部调用exit()。但是可以改变exit()终止整个程序的行为，见下面几个设置
+
+* use threads 'exit'=>'threads_only'
+全局设置，使得在线程内部调用exit()时不会导致整个程序终止，而是只让线程终止。由于这是全局设置，所以不是很建议设置。另外，该设置对main线程无效
+
+* threads->create({'exit'=>'thread_only},\&sub1)
+在创建线程的时候，就设置该线程中的exit()只退出当前线程
+
+* $thr->set_thread_exit_only(bool)
+修改当前线程中的exit()效果。如果给了true值，则线程内部调用exit()将只退出该线程，给false值，则终止整个程序。对main线程无效
+
+* threads->set_thread_exit_only(bool)
+类方法，给true值表示当前线程中的exit()只退出当前线程。对main线程无效
+
+最可能需要的退出方式是threads->exit()或threads->exit(status)，如果对于线程中严重错误的问题，则可能需要的是die或exit()来终止整个程序。
+
+下面是部分演示案例
+```
+use threads;  
+sub say_hello { 
+ printf("Hello thread! @_.\n"); 
+ sleep(3); 
+ printf("Bye\n"); 
+} 
+ 
+sub quick_exit { 
+ printf("I will be exit in no time\n"); 
+ exit(1); 
+} 
+ 
+my $t1 = threads->create( \&say_hello, "param1", "param2" ); 
+my $t2 = threads->create( {'exit'=>'thread_only'}, \&quick_exit ); 
+ 
+$t1->join(); 
+$t2->join();
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/0.pl"
+Hello thread! param1 param2.
+I will be exit in no time
+Bye
+```
+如果你希望每个线程的 exit 方法都只对自己有效，那么在每次创建一个新线程的时候都去要显式设置’ exit ’ => ’ thread_only ’属性显然有些麻烦，你也可以在引入 threads 包的时候设置这个属性在全局范围内有效
+```
+use threads ('exit' => 'threads_only'); 
+ 
+sub func { 
+ if(shift) { 
+ exit(1); 
+ } 
+} 
+ 
+my $t1 = threads->create( \&func, 1 ); 
+my $t2 = threads->create( \&func, 1 ); 
+ 
+$t1->join(); 
+$t2->join();
+```
+## yield
+短暂地放弃CPU转交给其它线程
+threads->yield();
+yield()和操作系统平台有关，不一定真的有效，且出让CPU的时间也一定能保证。
+
+## 线程的信号处理
+https://www.cnblogs.com/f-ck-need-u/p/10420910.html
+## threads::shared
+https://www.cnblogs.com/f-ck-need-u/p/10422445.html
+Perl解释器线程在被创建出来的时候，将从父线程中拷贝数据到子线程中，使得数据是线程私有的，并且数据是线程隔离的。如果真的想要在线程间共享数据，需要显式使用threads::shared模块来扩展threads模块的功能。这个模块必须在先导入了threads模块的情况下使用，否则threads::shared模块里的功能都将没效果。要共享数据，只需使用threads::shared模块的share方法即可，也可以直接将数据标记上:shared属性的方式来共享
+### 两种声明方式
+使用share()和:shared的区别在于后面这种标记的方式是在编译期间完成的。另外，使用:shared属性标记的方式可以直接共享引用类型的数据，但是share()不允许，它使用prototype限制了只允许接收变量类型的参数，可以使用&share()调用子程序的方式禁用prototype：
+```
+my $answer = 43;
+my @arr = qw(1 2 3);
+share($answer);
+share(@arr);
+
+my $answer :shared = 43;
+my @arr :shared = qw(1 2 3);
+my %hash :shared = (one=>1, two=>2, three=>3);
+
+my $aref = &share([1 2 3]);
+```
+简单案例
+```
+my $foo :shared = 1;
+my $bar = 1;
+threads->create(
+    sub {
+        $foo++;
+        $bar++;
+        say "new thread: \$foo=$foo";   # 2
+        say "new thread: \$bar=$bar";   # 2 
+    }
+)->join();
+
+say "main thread: \$foo=$foo";   # 2
+say "main thread: \$bar=$bar";   # 1
+
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/0.pl"
+new thread: $foo=2
+new thread: $bar=2
+main thread: $foo=2
+main thread: $bar=1
+```
+### 可以共享的类型
+并非所有数据都可以共享，只有普通变量、数组、hash以及已共享数据的引用可以共享
+* Ordinary scalars
+* Array refs
+* Hash refs
+* Scalar refs
+* Objects based on the above
+
+如果共享hash或array类型，那么里面的所有元素都对外可见，但并不意味着里面的元素是共享的。共享hash/array和共享它们里面的元素是独立的，共享hash/array只意味着共享它们自身，但里面的元素会暴露。反之，可以直接共享某个元素，但hash/array自身不共享。(经测试，数组的元素无法共享，hash的元素可正常共享)
+```
+my $var = 1;     #  未共享数据
+my $svar :shared = 2;    # 共享标量
+my @arr :shared = qw(perl python shell);   # 共享数组
+my %hash :shared;       # 共享hash
+
+my $thr = threads->new(\&mysub);
+
+sub mysub {
+    $hash{a} = 1;       # 成功
+    $hash{b} = $var;    # 成功：$var是普通变量
+    $hash{c} = \$svar;  # 成功：\$svar是已共享标量
+    $hash{d} = @arr;    # 成功：普通数组
+    $hash{e} = \@arr;   # 成功：已共享数组的引用
+
+    # $hash{f} = \$var; # 失败并die：$var未共享标量的引用
+    # $hash{g} = [];    # 失败：未共享数组的引用
+    # $hash{h} = {a=>1};# 失败：未共享hash的引用
+}
+
+$thr->join();     # join后文解释
+while( my ($key, $value) = each %hash ){
+    say "$key => $value";
+}
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/0.pl"
+e => ARRAY(0x29c6e28)
+b => 1
+d => 3
+a => 1
+c => SCALAR(0x29c6df8)
+```
+
+
+即在不同线程中可以操作同一变量，但此处暂未加锁处理，加锁见后面
+```
+use threads;
+use threads::shared;
+
+my $var=100;
+share($var); #### 共享变量进程和个线程之间
+my $t1 = threads -> create (\&thread_child, "T1");
+$t1 -> detach();
+sleep 1;
+my $t2 = threads -> create (\&thread_child, "T2");
+$t2 -> detach();
+print "do something in the main thread.......\n";
+sleep 1;
+thread_child("main_thread");
+sub thread_child
+{
+   my @name =@_;
+   print "@name var is $var......\n";
+   $var ++;  
+}
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/0.pl"
+T1 var is 100......
+do something in the main thread.......
+T2 var is 101......
+main_thread var is 102......
+```
+共享数组与哈希的案例
+```
+use threads;
+use threads::shared;
+
+my $var   :shared  = 0;       	# use :share tag to define 
+my @array :shared = (); 		# use :share tag to define 
+my %hash = (); 
+share(%hash);                  	# use share() funtion to define 
+
+
+sub start { 
+	$var = 100; 
+
+	@array[0] = 200; 
+	@array[1] = 201; 
+
+	$hash{'1'} = 301; 
+	$hash{'2'} = 302; 
+} 
+
+sub verify { 
+   sleep(1);                      	# make sure thread t1 execute firstly 
+   printf("var = $var\n");     		# var=100 
+
+	for(my $i = 0; $i < scalar(@array); $i++) { 
+		printf("array[$i] = $array[$i]\n");    	# array[0]=200; array[1]=201 
+	} 
+
+	foreach my $key ( sort( keys(%hash) ) ) { 
+		printf("hash{$key} = $hash{$key}\n"); 	# hash{1}=301; hash{2}=302 
+	} 
+} 
+
+my $t1 = threads->create( \&start ); 
+my $t2 = threads->create( \&verify ); 
+
+$t1->join(); 
+$t2->join();
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/0.pl"
+var = 100
+array[0] = 200
+array[1] = 201
+hash{1} = 301
+hash{2} = 302
+```
+
+## lock与死锁
+threads::shared模块中提供了一个lock()方法，用来将共享数据进行独占锁定，被锁定的数据无法被其它线程修改，直到释放锁其它线程才可以获取锁并修改数据。没有unlock()这样直接释放锁的方法，而是在退出当前作用域的时候自动释放锁。另外，锁住hash和数组的时候，仅仅只是锁住它们自身，但lock()无法去锁hash/array中的元素。lock()是可以递归的，在退出最外层lock()的作用域时释放锁。且递归时重复锁定同一个变量是幂等的。
+
+下面是肯定死锁的案例
+```
+my $x :shared = 4;
+my $y :shared = 'foo';
+
+my $thr1 = threads->create(
+    sub {
+        lock($x);
+        sleep 3;
+        lock($y);
+    }
+);
+
+my $thr2 = threads->create(
+    sub {
+        lock($y);
+        sleep 3;
+        lock($x);
+    }
+);
+
+sleep 10;
+```
+解决死锁最简单且最佳的方式是保证所有线程以相同的顺序去锁住每一个数据。另一个避免死锁的解决方案是尽可能让锁住共享数据的时间段变短，这样出现僵局的几率就会小很多。但是这两种方式很多时候都派不上用场，因为需要用到锁的情况可能会比较复杂。
+## 线程队列 Thread::Queue
+(Thread::Queue)队列数据结构(FIFO)是线程安全的，它保证了某些线程从一端写入数据，另一些线程从另一端读取数据。只要队列已经满了，写入操作就自动被阻塞直到有空间支持写操作，只要队列空了，读取操作就会自动阻塞直到队列中有数据可读。这种模式自身就保证了线程安全性。
+https://www.cnblogs.com/f-ck-need-u/p/10422293.html
+```
+use Thread::Queue;
+my $q = Thread::Queue->new();
+# 放非引用数据到队列
+$q->enqueue(1, 2, 3);
+# 放引用数据到队列
+$q->enqueue(['a', 'b', 'c']);
+my $thr = threads->new(
+    sub {
+        sleep 1;
+        while(my $item = $q->dequeue()){
+            # 如果是引用，要小心数据被其它线程修改
+            if (ref $item){
+                foreach (@$item){
+                    print "ele: $_\n";
+                }
+            } else {
+                print "item: $item\n";
+            }
+        }
+    }
+);
+
+my $num = $q->peek();
+say $num;
+$num = 11;     # 不影响，因为是非引用数据
+my $list = $q->peek(3);
+$$list[1] = 'bb';   # 将影响队列中对应元素
+$q->end();   # 关闭队列
+$thr->join;
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/0.pl"
+1
+item: 1
+item: 2
+item: 3
+ele: a
+ele: bb
+ele: c
+```
+
+## 线程信号量 Thread::Semaphore
+up()表示增加信号量的值，down()表示减信号量的值。只要减法操作后信号量的值为负数，这次减法操作就会被阻塞。
+new()方法来创建一个信号量，如果不给任何参数，则默认创建一个信号量值为1的信号量。如果给new()一个整数值N，则表示创建一个信号量值为N的信号量。
+new、up、down也可以每次指定数量，而非每次都是操作+1或-1
+https://www.cnblogs.com/f-ck-need-u/p/10422445.html#threadsemaphore
+
+案例是3个线程分别对一个全共享变量累加
+```
+use Thread::Semaphore;
+
+
+# 新建一个信号量
+my $sem = Thread::Semaphore->new();
+
+# 全局共享变量
+my $gbvar :shared = 0;
+
+my $thr1 = threads->create(\&mysub, 1);
+my $thr2 = threads->create(\&mysub, 2);
+my $thr3 = threads->create(\&mysub, 3);
+
+# 每个线程给全局共享变量依次加10
+sub mysub {
+    my $thr_id = shift;
+    my $try_left = 10;
+    my $local_value;
+    sleep 1;
+    while($try_left--){
+        # 相当于获取锁
+        $sem->down();
+
+        $local_value = $gbvar;
+        say "$try_left tries left for sub $thr_id "."(\$gbvar is $gbvar)";
+        sleep 1;
+        $local_value++;
+        $gbvar = $local_value;
+        
+        # 相当于释放锁
+        $sem->up();
+    }
+}
+
+$thr1->join();
+$thr2->join();
+$thr3->join();
+
+[huawei@n148 perl]$ perl "/home/huawei/playground/perl/0.pl"
+9 tries left for sub 1 ($gbvar is 0)
+8 tries left for sub 1 ($gbvar is 1)
+7 tries left for sub 1 ($gbvar is 2)
+6 tries left for sub 1 ($gbvar is 3)
+5 tries left for sub 1 ($gbvar is 4)
+4 tries left for sub 1 ($gbvar is 5)
+9 tries left for sub 2 ($gbvar is 6)
+8 tries left for sub 2 ($gbvar is 7)
+7 tries left for sub 2 ($gbvar is 8)
+6 tries left for sub 2 ($gbvar is 9)
+5 tries left for sub 2 ($gbvar is 10)
+4 tries left for sub 2 ($gbvar is 11)
+3 tries left for sub 2 ($gbvar is 12)
+2 tries left for sub 2 ($gbvar is 13)
+1 tries left for sub 2 ($gbvar is 14)
+0 tries left for sub 2 ($gbvar is 15)
+9 tries left for sub 3 ($gbvar is 16)
+8 tries left for sub 3 ($gbvar is 17)
+7 tries left for sub 3 ($gbvar is 18)
+6 tries left for sub 3 ($gbvar is 19)
+5 tries left for sub 3 ($gbvar is 20)
+4 tries left for sub 3 ($gbvar is 21)
+3 tries left for sub 3 ($gbvar is 22)
+2 tries left for sub 3 ($gbvar is 23)
+1 tries left for sub 3 ($gbvar is 24)
+0 tries left for sub 3 ($gbvar is 25)
+3 tries left for sub 1 ($gbvar is 26)
+2 tries left for sub 1 ($gbvar is 27)
+1 tries left for sub 1 ($gbvar is 28)
+0 tries left for sub 1 ($gbvar is 29)
+```
 # 目录操作
 ## 获取当前路径
 ```
