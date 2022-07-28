@@ -8733,6 +8733,7 @@ say $htmlpath;
 say myadd(10,20);
 ```
 运行如下，确保在PERL5LIB里包含了".",即当前目录，否则会找不到。。。
+另外确保你的终端当前路径在此pl文件夹内，否则还是找不到pm。。。
 ```
 perl "/home/huawei/hwwork/postdb_doc/test.pl"
 123
@@ -10793,6 +10794,17 @@ Devel::Cover模块可用于对函数、语句、分支、条件各自进行统�
 # 调试
 使用perl -dw xxx.pl进行启动，效果类似gdb
 # 安装perl
+
+
+
+
+20220630:
+1 最好的方法是先去除已有的perl，使用下面的卸载的方法，并且手动删除perl5那个目录
+2 使用下面的安装方法安装新的perl版本，但没有cpan，更没有cpanm
+3 sudo yum install perl-CPAN
+4 sudo yum install perl-App-cpanminus.noarch
+
+
 ## 卸载系统自带的perl
 ```
 yum remove perl
@@ -10885,7 +10897,7 @@ use lib '/home/huawei/perl5/lib/perl5';
 # perlbrew
 https://perlbrew.pl/Perlbrew-%E4%B8%AD%E6%96%87%E7%B0%A1%E4%BB%8B.html
 ```
-[huawei@n148 bin]$ cpan App::perlbrew
+[huawei@n148 bin]$ sudo cpan App::perlbrew
 [huawei@n148 bin]$ perlbrew init
 [huawei@n148 bin]$ source ~/perl5/perlbrew/etc/bashrc
 
@@ -10893,7 +10905,7 @@ https://perlbrew.pl/Perlbrew-%E4%B8%AD%E6%96%87%E7%B0%A1%E4%BB%8B.html
 [huawei@n148 bin]$ export PERLBREW_CPAN_MIRROR="http://mirrors.163.com/cpan"
 
 [huawei@n148 bin]$ perlbrew install 5.24.0
-
+安装会有几分钟。。。
 ```
 
 # 网络编程
