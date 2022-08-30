@@ -6180,6 +6180,26 @@ s/^\s+//; #将开头的空白替换成空字符串
 s/\s+$//; #将结尾的空白替换成空字符串
 s/^\s+|\s+$//g; #去除开头和结尾的空白符，但运行可能会慢，由于perl的引擎问题
 ```
+### 替换CRLF到LF
+将文件行尾的CRLF换为LF
+- 方法1 使用-i进行备份 
+- 方法2 不用-i还能使用重定向流
+
+	my $cmd = qq@perl -pe 's/\\r\$//' < $fname > $fname.$ext@;  
+	这句要改一下才行，否则相当于从fname读入后替换的结果保存为fname.ext了  
+	即得把这2个文件交互一些内容才对。。。
+```
+sub crlf2lf
+{
+	my $fname = $_;
+	my ($s, $usec) = gettimeofday();
+	my $ext = "$s$usec";	
+	my $cmd = qq@perl -i.$ext -pe 's/\\r\$//' $fname@;
+	say $cmd;
+	system($cmd);
+}
+
+```
 ### 无损替换
 如果需要同时保留原始字符串和替换后的字符串则可以这样
 ```
@@ -8184,11 +8204,20 @@ rename 'oldfile', 'newfile';
 https://www.shuzhiduo.com/A/pRdBOKZnzn/
 
 	1 在 http://mirrors.cpan.org/ 搜china，找到合适的镜像地址。
-	2 vi /home/huawei/.cpan/CPAN/MyConfig.pm
+	2 vi $HOME/.cpan/CPAN/MyConfig.pm
 	3 将'urllist' => [q[http://mirrors.neusoft.edu.cn/cpan/]], 中的地址换为新地址
 	4 保存完毕
+
+
+也可以交互方式，这样更简单，只不过每次都是添加一个，删除还得上面方法
+$ perl -MCPAN -e shell
+cpan[1]> o conf urllist push http://mirror.lzu.edu.cn/CPAN/
+cpan[2]> o conf commit
+cpan[3]> q
+
 ## cpan
-yum install perl-CPAN
+
+yum install perl-CPAN  这个是安装老板的，新版需要编译，参考安装perl的记录
 
 
 cpan命令是随perl一起安装的一个perl脚本
@@ -10795,14 +10824,13 @@ Devel::Cover模块可用于对函数、语句、分支、条件各自进行统�
 使用perl -dw xxx.pl进行启动，效果类似gdb
 # 安装perl
 
-
-
-
 20220630:
 1 最好的方法是先去除已有的perl，使用下面的卸载的方法，并且手动删除perl5那个目录
 2 使用下面的安装方法安装新的perl版本，但没有cpan，更没有cpanm
-3 sudo yum install perl-CPAN
-4 sudo yum install perl-App-cpanminus.noarch
+
+不要使用下面的2句，因为默认又把perl回到5.16了
+sudo yum install perl-CPAN
+sudo yum install perl-App-cpanminus.noarch
 
 
 ## 卸载系统自带的perl
@@ -10810,11 +10838,11 @@ Devel::Cover模块可用于对函数、语句、分支、条件各自进行统�
 yum remove perl
 然后再 whereis perl 看哪里还有然后手动删除
 ```
-## 安装
+## 安装perl,cpan
 ```
-wget https://www.cpan.org/src/5.0/perl-5.34.0.tar.gz
-tar zxvf perl-5.34.0.tar.gz
-cd perl-5.34.0
+wget https://www.cpan.org/src/5.0/perl-5.36.0.tar.gz
+tar zxvf perl-5.36.0.tar.gz
+cd perl-5.36.0
 ./Configure -des -Dprefix=/usr/local/perl -Dusethreads -Uversiononly
 make -j 3
 make -j 3 install
@@ -10824,13 +10852,23 @@ cd /usr/bin
 mv perl perl.old
 ln -s /usr/local/perl/bin/perl /usr/bin/perl 
 perl -version 
+
+
+wget https://cpan.metacpan.org/authors/id/A/AN/ANDK/CPAN-2.34.tar.gz
+tar zxvf CPAN-2.34.tar.gz
+cd CPAN-2.34
+perl Makefile.PL
+make && make test
+make install
+
 ```
+## 配置cpan，设置PERL5LIB
 然后最好设置一下环境变量，避免cpan安装模块时候无权限。  
 通过设置环境变量，可在无root权限的情况下，用CPAN安装Perl模块到个人目录。  
-编辑~/.bashrc文件，末尾添加如下设置。第一个变量$LOCAL_APP根据自己情况修改，后面可不修改直接复制。
+编辑~/.bashrc文件，末尾添加如下设置。$LOCAL_APP其实是放下载的包的位置的自定义目录
 ```
-# local app path
-LOCAL_APP=$HOME/local/app
+
+LOCAL_APP=$HOME/perl5/
 
 # local perl edition
 LOCAL_PERL_EDITION=$LOCAL_APP/perl
@@ -10852,8 +10890,7 @@ source ~/.bashrc
 
 以后就可以capn -i xxx进行安装模块了
 ```
-## 设置PERL5LIB
-见上面“安装”的注意那句
+
 # 升级perl与LanguageServer
 ```
 1：查询perl的真实安装路径
