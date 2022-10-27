@@ -8294,12 +8294,13 @@ cd Data-Dumper-2.172/
 
 共有2种build方式，Makefile.PL与Build.PL，依据哪个文件存在则使用哪个
 （1）Makefile.PL
-perl Makefile.PL
+perl Makefile.PL --bootstrap
+make test && make install
+
 如果想要指定安装路径，则加上INSTALL_BASE即可：
 perl Makefile.PL INSTALL_BASE=/home/perlapps
 
-make
-make install
+
 
 （2）Build.PL
 perl Build.PL
